@@ -53,7 +53,7 @@ const App = () => {
     saveToStorage("lastVisit", today);
   }, []);
 
-  // Save to localStorage
+  // Save to localStorage whenever data changes
   useEffect(() => saveToStorage("coins", coins), [coins]);
   useEffect(() => saveToStorage("completedMissions", completedMissions), [completedMissions]);
   useEffect(() => saveToStorage("claimedRewards", claimedRewards), [claimedRewards]);
