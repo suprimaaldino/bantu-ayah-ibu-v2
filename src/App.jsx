@@ -12,6 +12,7 @@ import { verifyPin, setParentPin } from "./utils/auth.js";
 import { useName } from "./context/NameContext";
 
 const App = () => {
+  // State Management
   const [coins, setCoins] = useState(0);
   const [completedMissions, setCompletedMissions] = useState([]);
   const [claimedRewards, setClaimedRewards] = useState([]);
@@ -27,51 +28,55 @@ const App = () => {
   });
   const [isOldPinVerified, setIsOldPinVerified] = useState(false);
 
-  // 🧒 Nama anak dari context
-  const { name: childName, setName: setChildName } = useName();
+  // Name Context
+  const { name: childName, setName: setChildName, isLoading: isNameLoading } = useName();
   const [isNameModalOpen, setIsNameModalOpen] = useState(false);
 
-  // Load data from localStorage on mount
+  // Load all persisted data on mount
   useEffect(() => {
-    const savedCoins = getFromStorage("coins", 0);
-    const savedCompletedMissions = getFromStorage("completedMissions", []);
-    const savedClaimedRewards = getFromStorage("claimedRewards", []);
-    const savedStreak = getFromStorage("streak", 1);
-    const lastVisit = getFromStorage("lastVisit", null);
+    try {
+      const savedCoins = getFromStorage("coins", 0);
+      const savedCompletedMissions = getFromStorage("completedMissions", []);
+      const savedClaimedRewards = getFromStorage("claimedRewards", []);
+      const savedStreak = getFromStorage("streak", 1);
+      const lastVisit = getFromStorage("lastVisit", null);
 
-    setCoins(savedCoins);
-    setCompletedMissions(savedCompletedMissions);
-    setClaimedRewards(savedClaimedRewards);
-    setStreak(savedStreak);
+      setCoins(savedCoins);
+      setCompletedMissions(savedCompletedMissions);
+      setClaimedRewards(savedClaimedRewards);
+      setStreak(savedStreak);
 
-    const today = new Date().toDateString();
-    const yesterday = new Date(Date.now() - 86400000).toDateString();
+      // Streak calculation
+      const today = new Date().toDateString();
+      const yesterday = new Date(Date.now() - 86400000).toDateString();
 
-    if (lastVisit === yesterday) {
-      const newStreak = savedStreak + 1;
-      setStreak(newStreak);
-      saveToStorage("streak", newStreak);
-    } else if (lastVisit !== today) {
-      saveToStorage("streak", 1);
+      if (lastVisit === yesterday) {
+        const newStreak = savedStreak + 1;
+        setStreak(newStreak);
+        saveToStorage("streak", newStreak);
+      } else if (lastVisit !== today) {
+        saveToStorage("streak", 1);
+      }
+
+      saveToStorage("lastVisit", today);
+    } catch (error) {
+      console.error("Failed to load saved data:", error);
     }
-
-    saveToStorage("lastVisit", today);
   }, []);
 
-  // Cek apakah nama sudah diisi
+  // Check if name is required (runs after context loads)
   useEffect(() => {
-    if (!childName || childName.trim() === "") {
+    if (!isNameLoading && (!childName || childName.trim() === "")) {
       setIsNameModalOpen(true);
-    } else {
-      setIsNameModalOpen(false);
     }
-  }, [childName]);
+  }, [childName, isNameLoading]);
 
-  // Save to localStorage whenever data changes
+  // Auto-save effects
   useEffect(() => saveToStorage("coins", coins), [coins]);
   useEffect(() => saveToStorage("completedMissions", completedMissions), [completedMissions]);
   useEffect(() => saveToStorage("claimedRewards", claimedRewards), [claimedRewards]);
 
+  // Helper Functions
   const showToast = (message, type = "success") => {
     setToast({ message, type });
   };
@@ -81,23 +86,20 @@ const App = () => {
   };
 
   const handlePinVerification = (inputPin) => {
+    if (!inputPin || inputPin.length !== 6 || !/^\d+$/.test(inputPin)) {
+      showToast("PIN harus 6 digit angka!", "error");
+      return;
+    }
+
     if (pinModal.isChangingPin) {
-      if (inputPin.length === 6 && /^\d+$/.test(inputPin)) {
-        setParentPin(inputPin);
-        showToast("PIN berhasil diubah!", "success");
-        setIsOldPinVerified(true);
-      } else {
-        showToast("PIN harus 6 digit angka!", "error");
-      }
+      setParentPin(inputPin);
+      showToast("PIN berhasil diubah!", "success");
+      setIsOldPinVerified(true);
+    } else if (verifyPin(inputPin)) {
+      pinModal.action?.(pinModal.data);
+      showToast("Verifikasi berhasil!", "success");
     } else {
-      if (verifyPin(inputPin)) {
-        if (pinModal.action) {
-          pinModal.action(pinModal.data);
-        }
-        showToast("Verifikasi berhasil!", "success");
-      } else {
-        showToast("PIN salah!", "error");
-      }
+      showToast("PIN salah!", "error");
     }
     setPinModal({ isOpen: false, action: null, isChangingPin: false });
   };
@@ -106,6 +108,7 @@ const App = () => {
     setPinModal({ isOpen: true, action, data, title, description, isChangingPin });
   };
 
+  // Mission and Reward Handlers
   const claimMission = (mission) => {
     if (completedMissions.includes(mission.id)) {
       showToast("Misi sudah selesai!", "error");
@@ -144,19 +147,11 @@ const App = () => {
     );
   };
 
-  const setNewPin = () => {
+  const handleSetNewPin = () => {
     requestPinVerification(
       () => {
         requestPinVerification(
-          (newPin) => {
-            if (newPin.length === 6 && /^\d+$/.test(newPin)) {
-              setParentPin(newPin);
-              showToast("PIN berhasil diubah!", "success");
-              setIsOldPinVerified(true);
-            } else {
-              showToast("PIN baru harus 6 digit angka!", "error");
-            }
-          },
+          (newPin) => setParentPin(newPin),
           null,
           "Atur PIN Baru",
           "Masukkan PIN baru (6 digit)",
@@ -165,25 +160,36 @@ const App = () => {
       },
       null,
       "Verifikasi PIN Lama",
-      "Masukkan PIN lama untuk melanjutkan",
-      false
+      "Masukkan PIN lama untuk melanjutkan"
     );
   };
 
   const handleSaveName = (name) => {
-    setChildName(name); // update context + localStorage
+    const trimmedName = name.trim();
+    if (trimmedName.length < 2) {
+      showToast("Nama harus lebih dari 1 huruf!", "error");
+      return;
+    }
+    setChildName(trimmedName);
     setIsNameModalOpen(false);
-    showToast(`Halo, ${name}!`, "success");
+    showToast(`Halo, ${trimmedName}!`, "success");
   };
 
+  // Navigation Config
   const navigationItems = [
     { id: "missions", label: "Misi", icon: "🏠" },
     { id: "rewards", label: "Hadiah", icon: "🏆" },
     { id: "profile", label: "Profil", icon: "👧" },
   ];
 
+  // Render
+  if (isNameLoading) {
+    return <div className="flex items-center justify-center h-screen">Loading...</div>;
+  }
+
   return (
-    <div className="font-sans">
+    <div className="font-sans bg-gray-50 min-h-screen pb-16">
+      {/* Main Content */}
       {activePage === "missions" && (
         <MissionsPage
           missions={missions}
@@ -192,62 +198,74 @@ const App = () => {
           coins={coins}
         />
       )}
+
       {activePage === "rewards" && (
         <RewardsPage
           rewards={rewards}
           coins={coins}
           onRedeemReward={redeemReward}
-          childName={childName}
+          claimedRewards={claimedRewards}
         />
       )}
+
       {activePage === "profile" && (
         <ProfilePage
           coins={coins}
           completedMissions={completedMissions}
           totalMissions={missions.length}
           streak={streak}
-          onSetPin={setNewPin}
+          onSetPin={handleSetNewPin}
           isOldPinVerified={isOldPinVerified}
           childName={childName}
         />
       )}
 
-      {/* Bottom Nav */}
-      <div className="fixed bottom-0 left-0 right-0 bg-white border-t border-gray-200 px-4 py-2">
+      {/* Bottom Navigation */}
+      <nav className="fixed bottom-0 left-0 right-0 bg-white border-t border-gray-200 shadow-md">
         <div className="max-w-md mx-auto">
           <div className="flex justify-around">
             {navigationItems.map((item) => (
               <button
                 key={item.id}
                 onClick={() => setActivePage(item.id)}
-                className={`flex flex-col items-center py-2 px-3 rounded-lg transition-all duration-200 ${
+                className={`flex flex-col items-center py-3 px-4 transition-all ${
                   activePage === item.id
-                    ? "text-purple-600 bg-purple-50 scale-110"
+                    ? "text-purple-600 scale-110"
                     : "text-gray-500 hover:text-gray-700"
                 }`}
               >
-                <span className="text-xl mb-1">{item.icon}</span>
-                <span className="text-xs font-medium">{item.label}</span>
+                <span className="text-xl">{item.icon}</span>
+                <span className="text-xs mt-1">{item.label}</span>
               </button>
             ))}
           </div>
         </div>
-      </div>
+      </nav>
 
-      {/* Modal & Toast */}
+      {/* Modals */}
       <ModalPIN
         isOpen={pinModal.isOpen}
-        onClose={() => setPinModal({ isOpen: false, action: null, isChangingPin: false })}
+        onClose={() => setPinModal(prev => ({ ...prev, isOpen: false }))}
         onConfirm={handlePinVerification}
         title={pinModal.title}
         description={pinModal.description}
       />
 
       {isNameModalOpen && (
-        <ModalInputName onSave={handleSaveName} defaultValue="" />
+        <ModalInputName 
+          onSave={handleSaveName}
+          defaultValue=""
+        />
       )}
 
-      <ToastMessage message={toast.message} type={toast.type} onClose={closeToast} />
+      {/* Toast Notification */}
+      {toast.message && (
+        <ToastMessage 
+          message={toast.message} 
+          type={toast.type} 
+          onClose={closeToast} 
+        />
+      )}
     </div>
   );
 };
