@@ -10,6 +10,7 @@ import ProfilePage from "./pages/ProfilePage.jsx";
 import { getFromStorage, saveToStorage } from "./utils/storage.js";
 import { verifyPin, setParentPin } from "./utils/auth.js";
 
+
 const App = () => {
   const [coins, setCoins] = useState(0);
   const [completedMissions, setCompletedMissions] = useState([]);

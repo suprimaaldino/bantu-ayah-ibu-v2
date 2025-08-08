@@ -1,28 +1,20 @@
-// src/pages/RewardsPage.jsx
-import RewardCard from "../components/RewardCard.jsx";
+import React from 'react';
+import Header from '../components/Header';
+import RewardCard from '../components/RewardCard';
 
-const RewardsPage = ({ rewards, coins, onRedeemReward }) => {
+const RewardsPage = ({ rewards, totalCoins, onRedeem }) => {
   return (
-    <div className="min-h-screen bg-gradient-to-br from-green-50 to-teal-50 pb-20">
-      <div className="max-w-md mx-auto px-4 pt-6">
-        <div className="text-center mb-6">
-          <div className="text-6xl mb-3">🏆</div>
-          <h1 className="text-2xl font-bold text-gray-800 mb-2">Hadiah</h1>
-          <p className="text-gray-600">Tukarkan koinmu dengan hadiah!</p>
-          <div className="mt-3 bg-white rounded-full px-4 py-2 inline-block shadow-sm">
-            <span className="text-orange-500 font-bold">⭐ {coins}</span>
-          </div>
-        </div>
-        <div className="grid gap-4">
-          {rewards.map((reward) => (
-            <RewardCard
-              key={reward.id}
-              reward={reward}
-              onRedeem={() => onRedeemReward(reward)}
-              coins={coins}
-            />
-          ))}
-        </div>
+    <div className="min-h-screen bg-gradient-to-br from-blue-50 to-purple-50 pb-20">
+      <Header coins={totalCoins} />
+      <div className="p-4 grid grid-cols-1 md:grid-cols-2 gap-4">
+        {rewards.map((reward) => (
+          <RewardCard
+            key={reward.id}
+            reward={reward}
+            onRedeem={onRedeem}
+            totalCoins={totalCoins}
+          />
+        ))}
       </div>
     </div>
   );

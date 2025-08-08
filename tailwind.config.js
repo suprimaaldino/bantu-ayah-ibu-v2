@@ -9,6 +9,8 @@ module.exports = {
       animation: {
         'fade-in': 'fadeIn 0.3s ease-out',
         'scale-in': 'scaleIn 0.2s ease-out',
+        'typing': 'typing 2s steps(30, end)',
+        'blink': 'blink 0.7s step-end infinite',
       },
       keyframes: {
         fadeIn: {
@@ -18,7 +20,15 @@ module.exports = {
         scaleIn: {
           '0%': { opacity: 0, transform: 'scale(0.9)' },
           '100%': { opacity: 1, transform: 'scale(1)' },
-        }
+        },
+        typing: {
+          '0%': { width: '0%' },
+          '100%': { width: '100%' },
+        },
+        blink: {
+          '0%, 100%': { borderColor: 'transparent' },
+          '50%': { borderColor: 'currentColor' },
+        },
       }
     },
   },
