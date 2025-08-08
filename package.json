@@ -11,7 +11,7 @@
     "build:gh": "GITHUB_PAGES=true vite build",
     "deploy:gh": "cross-env GITHUB_PAGES=true vite build && gh-pages -d dist",
     "build:gh:win": "set GITHUB_PAGES=true && vite build",
-    "build:vercel": "GITHUB_PAGES=false vite build"
+    "build:vercel": "cross-env GITHUB_PAGES=false vite build"
   },
   "dependencies": {
     "react": "^18.3.1",
