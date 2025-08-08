@@ -6,11 +6,11 @@
   "homepage": "https://suprimaaldino.github.io/bantu-ayah-ibu-v2",
   "scripts": {
     "dev": "vite",
-    "build:vite": "vite build",
+    "build": "vite build",
     "preview": "vite preview",
-    "deploy": "gh-pages -d dist",
-    "build": "GITHUB_PAGES=false vite build",
-    "build:gh": "GITHUB_PAGES=true vite build"
+    "build:gh": "GITHUB_PAGES=true vite build",
+    "deploy:gh": "GITHUB_PAGES=true vite build && gh-pages -d dist",
+    "build:vercel": "GITHUB_PAGES=false vite build"
   },
   "dependencies": {
     "react": "^18.3.1",
