@@ -1,10 +1,9 @@
 import { defineConfig } from 'vite'
 import react from '@vitejs/plugin-react'
 
-// Deteksi apakah sedang build di GitHub Pages
-const isGitHubPages = process.env.GITHUB_PAGES === 'true'
+const isVercel = process.env.VERCEL === '1'
 
 export default defineConfig({
   plugins: [react()],
-  base: isGitHubPages ? '/bantu-ayah-ibu-v2/' : '/',
+  base: isVercel ? '/' : '/bantu-ayah-ibu-v2/',
 })
