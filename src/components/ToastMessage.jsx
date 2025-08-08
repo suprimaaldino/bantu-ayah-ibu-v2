@@ -1,26 +1,34 @@
-// src/components/ToastMessage.jsx
-import React, { useEffect } from "react";
+import React, { useEffect } from 'react';
 
 const ToastMessage = ({ message, type, onClose }) => {
   useEffect(() => {
-    const timer = setTimeout(() => {
-      onClose();
-    }, 3000);
-    return () => clearTimeout(timer);
-  }, [onClose]);
+    if (message) {
+      const timer = setTimeout(onClose, 3000);
+      return () => clearTimeout(timer);
+    }
+  }, [message, onClose]);
 
   if (!message) return null;
 
-  const bgColor = type === "success" ? "bg-green-500" : "bg-red-500";
-  const icon = type === "success" ? "🎉" : "⚠️";
-
   return (
-    <div className="fixed bottom-6 left-1/2 transform -translate-x-1/2 z-50">
-      <div
-        className={`${bgColor} text-white px-6 py-3 rounded-full shadow-lg flex items-center space-x-2 animate-fade-in`}
-      >
-        <span>{icon}</span>
-        <span className="font-medium">{message}</span>
+    <div className={`fixed top-4 right-4 z-50 p-4 rounded-lg shadow-lg text-white font-medium transform transition-all duration-300 ${
+      type === "error" ? "bg-red-500" : 
+      type === "info" ? "bg-blue-500" : 
+      "bg-green-500"
+    }`}>
+      <div className="flex items-center gap-2">
+        <span>
+          {type === "error" ? "❌" : 
+           type === "info" ? "ℹ️" : 
+           "✅"}
+        </span>
+        <span>{message}</span>
+        <button 
+          onClick={onClose} 
+          className="ml-2 text-white hover:opacity-70 font-bold text-lg"
+        >
+          ×
+        </button>
       </div>
     </div>
   );

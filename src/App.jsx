@@ -1,15 +1,15 @@
-// src/App.jsx
 import React, { useState, useEffect } from "react";
 import missions from "./data/missions.js";
 import rewards from "./data/rewards.js";
 import ToastMessage from "./components/ToastMessage.jsx";
 import ModalPIN from "./components/ModalPIN.jsx";
+import ModalInputName from "./components/ModalInputName.jsx";
 import MissionsPage from "./pages/MissionsPage.jsx";
 import RewardsPage from "./pages/RewardsPage.jsx";
 import ProfilePage from "./pages/ProfilePage.jsx";
 import { getFromStorage, saveToStorage } from "./utils/storage.js";
 import { verifyPin, setParentPin } from "./utils/auth.js";
-
+import { useName } from "./context/NameContext";
 
 const App = () => {
   const [coins, setCoins] = useState(0);
@@ -26,6 +26,10 @@ const App = () => {
     isChangingPin: false,
   });
   const [isOldPinVerified, setIsOldPinVerified] = useState(false);
+
+  // 🧒 Nama anak dari context
+  const { name: childName, setName: setChildName } = useName();
+  const [isNameModalOpen, setIsNameModalOpen] = useState(false);
 
   // Load data from localStorage on mount
   useEffect(() => {
@@ -54,6 +58,15 @@ const App = () => {
     saveToStorage("lastVisit", today);
   }, []);
 
+  // Cek apakah nama sudah diisi
+  useEffect(() => {
+    if (!childName || childName.trim() === "") {
+      setIsNameModalOpen(true);
+    } else {
+      setIsNameModalOpen(false);
+    }
+  }, [childName]);
+
   // Save to localStorage whenever data changes
   useEffect(() => saveToStorage("coins", coins), [coins]);
   useEffect(() => saveToStorage("completedMissions", completedMissions), [completedMissions]);
@@ -69,7 +82,6 @@ const App = () => {
 
   const handlePinVerification = (inputPin) => {
     if (pinModal.isChangingPin) {
-      // Saat ganti PIN, langsung pakai inputPin sebagai PIN baru
       if (inputPin.length === 6 && /^\d+$/.test(inputPin)) {
         setParentPin(inputPin);
         showToast("PIN berhasil diubah!", "success");
@@ -78,9 +90,10 @@ const App = () => {
         showToast("PIN harus 6 digit angka!", "error");
       }
     } else {
-      // Untuk klaim misi / tukar hadiah
       if (verifyPin(inputPin)) {
-        pinModal.action(pinModal.data);
+        if (pinModal.action) {
+          pinModal.action(pinModal.data);
+        }
         showToast("Verifikasi berhasil!", "success");
       } else {
         showToast("PIN salah!", "error");
@@ -102,6 +115,7 @@ const App = () => {
       () => {
         setCompletedMissions([...completedMissions, mission.id]);
         setCoins(coins + mission.coins);
+        showToast(`Selamat! Kamu mendapat ${mission.coins} koin!`, "success");
       },
       mission,
       "Verifikasi Orang Tua",
@@ -112,6 +126,10 @@ const App = () => {
   const redeemReward = (reward) => {
     if (coins < reward.price) {
       showToast("Koin tidak cukup!", "error");
+      return;
+    }
+    if (claimedRewards.includes(reward.id)) {
+      showToast("Hadiah sudah ditukar!", "error");
       return;
     }
     requestPinVerification(
@@ -127,10 +145,8 @@ const App = () => {
   };
 
   const setNewPin = () => {
-    // Langsung minta PIN lama dulu
     requestPinVerification(
       () => {
-        // Jika PIN lama benar, langsung minta PIN baru
         requestPinVerification(
           (newPin) => {
             if (newPin.length === 6 && /^\d+$/.test(newPin)) {
@@ -144,7 +160,7 @@ const App = () => {
           null,
           "Atur PIN Baru",
           "Masukkan PIN baru (6 digit)",
-          true // isChangingPin
+          true
         );
       },
       null,
@@ -152,6 +168,12 @@ const App = () => {
       "Masukkan PIN lama untuk melanjutkan",
       false
     );
+  };
+
+  const handleSaveName = (name) => {
+    setChildName(name); // update context + localStorage
+    setIsNameModalOpen(false);
+    showToast(`Halo, ${name}!`, "success");
   };
 
   const navigationItems = [
@@ -175,6 +197,7 @@ const App = () => {
           rewards={rewards}
           coins={coins}
           onRedeemReward={redeemReward}
+          childName={childName}
         />
       )}
       {activePage === "profile" && (
@@ -185,6 +208,7 @@ const App = () => {
           streak={streak}
           onSetPin={setNewPin}
           isOldPinVerified={isOldPinVerified}
+          childName={childName}
         />
       )}
 
@@ -218,6 +242,10 @@ const App = () => {
         title={pinModal.title}
         description={pinModal.description}
       />
+
+      {isNameModalOpen && (
+        <ModalInputName onSave={handleSaveName} defaultValue="" />
+      )}
 
       <ToastMessage message={toast.message} type={toast.type} onClose={closeToast} />
     </div>

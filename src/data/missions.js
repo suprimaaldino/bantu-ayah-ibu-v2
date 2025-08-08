@@ -1,5 +1,3 @@
-// src/data/missions.js
-
 const missions = [
   // 🔹 Mudah (Poin 3–6)
   { id: 1, name: "Merapikan Tempat Tidur Sendiri", difficulty: "Mudah", coins: 5 },

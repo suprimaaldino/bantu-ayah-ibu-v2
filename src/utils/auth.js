@@ -1,15 +1,11 @@
-// src/utils/auth.js
-import { getFromStorage, saveToStorage } from "./storage.js";
-
-const DEFAULT_PIN = "010390"; // Default PIN for parents
-
-const verifyPin = (inputPin) => {
-  const savedPin = getFromStorage("parentPin", DEFAULT_PIN);
-  return inputPin === savedPin;
+export const getParentPin = () => {
+  return localStorage.getItem("parentPin") || "010390";
 };
 
-const setParentPin = (newPin) => {
-  saveToStorage("parentPin", newPin);
+export const verifyPin = (inputPin) => {
+  return inputPin === getParentPin();
 };
 
-export { verifyPin, setParentPin, DEFAULT_PIN };
+export const setParentPin = (newPin) => {
+  localStorage.setItem("parentPin", newPin);
+};

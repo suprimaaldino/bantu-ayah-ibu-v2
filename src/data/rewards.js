@@ -1,5 +1,3 @@
-// src/data/rewards.js
-
 const rewards = [
   // 🎁 Hadiah Kecil (Harga < 30)
   { id: 1, name: "Permen", price: 10 },
@@ -12,7 +10,6 @@ const rewards = [
   { id: 6, name: "Beli Es Krim", price: 50 },
   { id: 7, name: "Jalan Jalan Sore", price: 60 },
   { id: 8, name: "Pilih Menu Makan Siang", price: 70 },
-
 
   // 🌟 Hadiah Besar (Harga ≥ 100)
   { id: 9, name: "Beli Mainan Baru", price: 500 },
