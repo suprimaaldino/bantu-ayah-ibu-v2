@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from "react";
+import { Helmet } from "react-helmet";
 import missions from "./data/missions.js";
 import rewards from "./data/rewards.js";
 import ToastMessage from "./components/ToastMessage.jsx";
@@ -32,7 +33,7 @@ const App = () => {
   const { name: childName, setName: setChildName, isLoading: isNameLoading } = useName();
   const [isNameModalOpen, setIsNameModalOpen] = useState(false);
 
-  // Load all persisted data on mount
+  // Load persisted data on mount
   useEffect(() => {
     try {
       const savedCoins = getFromStorage("coins", 0);
@@ -64,7 +65,7 @@ const App = () => {
     }
   }, []);
 
-  // Check if name is required (runs after context loads)
+  // Check if name is required
   useEffect(() => {
     if (!isNameLoading && (!childName || childName.trim() === "")) {
       setIsNameModalOpen(true);
@@ -77,13 +78,8 @@ const App = () => {
   useEffect(() => saveToStorage("claimedRewards", claimedRewards), [claimedRewards]);
 
   // Helper Functions
-  const showToast = (message, type = "success") => {
-    setToast({ message, type });
-  };
-
-  const closeToast = () => {
-    setToast({ message: "", type: "" });
-  };
+  const showToast = (message, type = "success") => setToast({ message, type });
+  const closeToast = () => setToast({ message: "", type: "" });
 
   const handlePinVerification = (inputPin) => {
     if (!inputPin || inputPin.length !== 6 || !/^\d+$/.test(inputPin)) {
@@ -108,7 +104,7 @@ const App = () => {
     setPinModal({ isOpen: true, action, data, title, description, isChangingPin });
   };
 
-  // Mission and Reward Handlers
+  // Mission & Reward Handlers
   const claimMission = (mission) => {
     if (completedMissions.includes(mission.id)) {
       showToast("Misi sudah selesai!", "error");
@@ -175,53 +171,67 @@ const App = () => {
     showToast(`Halo, ${trimmedName}!`, "success");
   };
 
-  // Navigation Config
   const navigationItems = [
     { id: "missions", label: "Misi", icon: "🏠" },
     { id: "rewards", label: "Hadiah", icon: "🏆" },
     { id: "profile", label: "Profil", icon: "👧" },
   ];
 
-  // Render
   if (isNameLoading) {
     return <div className="flex items-center justify-center h-screen">Loading...</div>;
   }
 
   return (
-    <div className="font-sans bg-gray-50 min-h-screen pb-16">
-      {/* Main Content */}
-      {activePage === "missions" && (
-        <MissionsPage
-          missions={missions}
-          completedMissions={completedMissions}
-          onClaimMission={claimMission}
-          coins={coins}
+    <>
+      {/* ✅ Helmet Global */}
+      <Helmet>
+        <html lang="id" />
+        <title>Bantu Ayah Ibu 👨‍👩‍👧</title>
+        <meta
+          name="description"
+          content="Aplikasi gamifikasi untuk membantu Ayah dan Ibu memberi tugas harian dan reward kepada anak."
         />
-      )}
+      </Helmet>
 
-      {activePage === "rewards" && (
-        <RewardsPage
-          rewards={rewards}
-          coins={coins}
-          onRedeemReward={redeemReward}
-          claimedRewards={claimedRewards}
-        />
-      )}
+      {/* ✅ Gunakan main sebagai container halaman */}
+      <main className="font-sans bg-gray-50 min-h-screen pb-16">
+        {activePage === "missions" && (
+          <MissionsPage
+            missions={missions}
+            completedMissions={completedMissions}
+            onClaimMission={claimMission}
+            coins={coins}
+          />
+        )}
 
-      {activePage === "profile" && (
-        <ProfilePage
-          coins={coins}
-          completedMissions={completedMissions}
-          totalMissions={missions.length}
-          streak={streak}
-          onSetPin={handleSetNewPin}
-          isOldPinVerified={isOldPinVerified}
-          childName={childName}
-        />
-      )}
+        {activePage === "rewards" && (
+          <RewardsPage
+            rewards={rewards}
+            coins={coins}
+            onRedeemReward={redeemReward}
+            claimedRewards={claimedRewards}
+          />
+        )}
 
-      {/* Bottom Navigation */}
-      <nav className="fixed bottom-0 left-0 right-0 bg-white border-t border-gray-200 shadow-md">
+        {activePage === "profile" && (
+          <ProfilePage
+            coins={coins}
+            completedMissions={completedMissions}
+            totalMissions={missions.length}
+            streak={streak}
+            onSetPin={handleSetNewPin}
+            isOldPinVerified={isOldPinVerified}
+            childName={childName}
+          />
+        )}
+      </main>
+
+      {/* ✅ Bottom Navigation dengan role navigation */}
+      <nav
+        className="fixed bottom-0 left-0 right-0 bg-white border-t border-gray-200 shadow-md"
+        role="navigation"
+        aria-label="Navigasi bawah"
+      >
         <div className="max-w-md mx-auto">
           <div className="flex justify-around">
             {navigationItems.map((item) => (
@@ -252,21 +262,17 @@ const App = () => {
       />
 
       {isNameModalOpen && (
-        <ModalInputName 
-          onSave={handleSaveName}
-          defaultValue=""
-        />
+        <ModalInputName onSave={handleSaveName} defaultValue="" />
       )}
 
-      {/* Toast Notification */}
       {toast.message && (
-        <ToastMessage 
-          message={toast.message} 
-          type={toast.type} 
-          onClose={closeToast} 
+        <ToastMessage
+          message={toast.message}
+          type={toast.type}
+          onClose={closeToast}
         />
       )}
-    </div>
+    </>
   );
 };
 
