@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useCallback } from "react";
 import { useName } from "../context/NameContext";
 
 const ModalInputName = ({ onSave, defaultValue = "" }) => {
@@ -9,19 +9,22 @@ const ModalInputName = ({ onSave, defaultValue = "" }) => {
     setLocalName(defaultValue);
   }, [defaultValue]);
 
-  const handleSave = () => {
+  const handleSave = useCallback(() => {
     const trimmed = name.trim();
     if (trimmed !== "") {
-      setName(trimmed);   // update context + localStorage
-      onSave(trimmed);    // trigger modal close / toast
+      setName(trimmed);
+      onSave(trimmed);
     }
-  };
+  }, [name, setName, onSave]);
 
-  const handleKeyPress = (e) => {
-    if (e.key === 'Enter') {
-      handleSave();
-    }
-  };
+  const handleKeyPress = useCallback(
+    (e) => {
+      if (e.key === "Enter") {
+        handleSave();
+      }
+    },
+    [handleSave]
+  );
 
   return (
     <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-[9999]">
@@ -41,7 +44,7 @@ const ModalInputName = ({ onSave, defaultValue = "" }) => {
         <button
           onClick={handleSave}
           disabled={!name.trim()}
-          className="w-full bg-purple-500 text-white py-3 rounded-lg font-semibold hover:bg-purple-600 disabled:bg-gray-300 disabled:cursor-not-allowed active:scale-95 transition-all"
+          className="w-full bg-purple-500 text-white py-3 rounded-lg font-semibold hover:bg-purple-600 disabled:bg-gray-300 disabled:cursor-not-allowed active:scale-95 transition-transform"
         >
           Simpan
         </button>

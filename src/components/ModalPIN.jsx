@@ -1,20 +1,20 @@
-import React, { useState } from 'react';
+import React, { useState, useCallback } from 'react';
 
 const ModalPIN = ({ isOpen, onClose, onConfirm, title, description }) => {
   const [pin, setPin] = useState("");
 
   if (!isOpen) return null;
 
-  const handleSubmit = () => {
+  const handleSubmit = useCallback(() => {
     onConfirm(pin);
     setPin("");
-  };
+  }, [pin, onConfirm]);
 
-  const handleKeyPress = (e) => {
-    if (e.key === 'Enter') {
+  const handleKeyPress = useCallback((e) => {
+    if (e.key === "Enter") {
       handleSubmit();
     }
-  };
+  }, [handleSubmit]);
 
   return (
     <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
@@ -35,14 +35,14 @@ const ModalPIN = ({ isOpen, onClose, onConfirm, title, description }) => {
         <div className="flex gap-2">
           <button
             onClick={onClose}
-            className="flex-1 bg-gray-300 text-gray-700 py-3 rounded-lg font-semibold hover:bg-gray-400 active:scale-95 transition-all"
+            className="flex-1 bg-gray-300 text-gray-700 py-3 rounded-lg font-semibold hover:bg-gray-400 active:scale-95 transition-transform"
           >
             Batal
           </button>
           <button
             onClick={handleSubmit}
             disabled={pin.length === 0}
-            className="flex-1 bg-purple-500 text-white py-3 rounded-lg font-semibold hover:bg-purple-600 disabled:bg-gray-300 disabled:cursor-not-allowed active:scale-95 transition-all"
+            className="flex-1 bg-purple-500 text-white py-3 rounded-lg font-semibold hover:bg-purple-600 disabled:bg-gray-300 disabled:cursor-not-allowed active:scale-95 transition-transform"
           >
             Konfirm
           </button>

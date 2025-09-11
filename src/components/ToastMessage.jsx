@@ -1,4 +1,4 @@
-import React, { useEffect } from 'react';
+import React, { useEffect, memo } from 'react';
 
 const ToastMessage = ({ message, type, onClose }) => {
   useEffect(() => {
@@ -11,20 +11,22 @@ const ToastMessage = ({ message, type, onClose }) => {
   if (!message) return null;
 
   return (
-    <div className={`fixed top-4 right-4 z-50 p-4 rounded-lg shadow-lg text-white font-medium transform transition-all duration-300 ${
-      type === "error" ? "bg-red-500" : 
-      type === "info" ? "bg-blue-500" : 
-      "bg-green-500"
-    }`}>
+    <div
+      className={`fixed top-4 right-4 z-50 p-4 rounded-lg shadow-lg text-white font-medium transform transition-transform duration-300 ${
+        type === "error"
+          ? "bg-red-500"
+          : type === "info"
+          ? "bg-blue-500"
+          : "bg-green-500"
+      }`}
+    >
       <div className="flex items-center gap-2">
         <span>
-          {type === "error" ? "❌" : 
-           type === "info" ? "ℹ️" : 
-           "✅"}
+          {type === "error" ? "❌" : type === "info" ? "ℹ️" : "✅"}
         </span>
         <span>{message}</span>
-        <button 
-          onClick={onClose} 
+        <button
+          onClick={onClose}
           className="ml-2 text-white hover:opacity-70 font-bold text-lg"
         >
           ×
@@ -34,4 +36,4 @@ const ToastMessage = ({ message, type, onClose }) => {
   );
 };
 
-export default ToastMessage;
+export default memo(ToastMessage);

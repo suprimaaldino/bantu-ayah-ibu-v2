@@ -1,16 +1,18 @@
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useCallback, lazy, Suspense } from "react";
 import { Helmet } from "react-helmet";
 import missions from "./data/missions.js";
 import rewards from "./data/rewards.js";
 import ToastMessage from "./components/ToastMessage.jsx";
 import ModalPIN from "./components/ModalPIN.jsx";
 import ModalInputName from "./components/ModalInputName.jsx";
-import MissionsPage from "./pages/MissionsPage.jsx";
-import RewardsPage from "./pages/RewardsPage.jsx";
-import ProfilePage from "./pages/ProfilePage.jsx";
 import { getFromStorage, saveToStorage } from "./utils/storage.js";
 import { verifyPin, setParentPin } from "./utils/auth.js";
 import { useName } from "./context/NameContext";
+
+// ✅ Lazy Load pages (Code-Splitting)
+const MissionsPage = lazy(() => import("./pages/MissionsPage.jsx"));
+const RewardsPage = lazy(() => import("./pages/RewardsPage.jsx"));
+const ProfilePage = lazy(() => import("./pages/ProfilePage.jsx"));
 
 const App = () => {
   // State Management
@@ -33,7 +35,7 @@ const App = () => {
   const { name: childName, setName: setChildName, isLoading: isNameLoading } = useName();
   const [isNameModalOpen, setIsNameModalOpen] = useState(false);
 
-  // Load persisted data on mount
+  // ✅ Load persisted data on mount
   useEffect(() => {
     try {
       const savedCoins = getFromStorage("coins", 0);
@@ -65,85 +67,108 @@ const App = () => {
     }
   }, []);
 
-  // Check if name is required
+  // ✅ Cek nama anak, buka modal jika kosong
   useEffect(() => {
     if (!isNameLoading && (!childName || childName.trim() === "")) {
       setIsNameModalOpen(true);
     }
   }, [childName, isNameLoading]);
 
-  // Auto-save effects
-  useEffect(() => saveToStorage("coins", coins), [coins]);
-  useEffect(() => saveToStorage("completedMissions", completedMissions), [completedMissions]);
-  useEffect(() => saveToStorage("claimedRewards", claimedRewards), [claimedRewards]);
+  // ✅ Debounce localStorage writes supaya tidak terlalu sering block main thread
+  useEffect(() => {
+    const t = setTimeout(() => saveToStorage("coins", coins), 300);
+    return () => clearTimeout(t);
+  }, [coins]);
 
-  // Helper Functions
-  const showToast = (message, type = "success") => setToast({ message, type });
-  const closeToast = () => setToast({ message: "", type: "" });
+  useEffect(() => {
+    const t = setTimeout(() => saveToStorage("completedMissions", completedMissions), 300);
+    return () => clearTimeout(t);
+  }, [completedMissions]);
 
-  const handlePinVerification = (inputPin) => {
-    if (!inputPin || inputPin.length !== 6 || !/^\d+$/.test(inputPin)) {
-      showToast("PIN harus 6 digit angka!", "error");
-      return;
-    }
+  useEffect(() => {
+    const t = setTimeout(() => saveToStorage("claimedRewards", claimedRewards), 300);
+    return () => clearTimeout(t);
+  }, [claimedRewards]);
 
-    if (pinModal.isChangingPin) {
-      setParentPin(inputPin);
-      showToast("PIN berhasil diubah!", "success");
-      setIsOldPinVerified(true);
-    } else if (verifyPin(inputPin)) {
-      pinModal.action?.(pinModal.data);
-      showToast("Verifikasi berhasil!", "success");
-    } else {
-      showToast("PIN salah!", "error");
-    }
-    setPinModal({ isOpen: false, action: null, isChangingPin: false });
-  };
+  // ✅ Memoized Functions
+  const showToast = useCallback((message, type = "success") => setToast({ message, type }), []);
+  const closeToast = useCallback(() => setToast({ message: "", type: "" }), []);
 
-  const requestPinVerification = (action, data, title, description, isChangingPin = false) => {
-    setPinModal({ isOpen: true, action, data, title, description, isChangingPin });
-  };
+  const handlePinVerification = useCallback(
+    (inputPin) => {
+      if (!inputPin || inputPin.length !== 6 || !/^\d+$/.test(inputPin)) {
+        showToast("PIN harus 6 digit angka!", "error");
+        return;
+      }
 
-  // Mission & Reward Handlers
-  const claimMission = (mission) => {
-    if (completedMissions.includes(mission.id)) {
-      showToast("Misi sudah selesai!", "error");
-      return;
-    }
-    requestPinVerification(
-      () => {
-        setCompletedMissions([...completedMissions, mission.id]);
-        setCoins(coins + mission.coins);
-        showToast(`Selamat! Kamu mendapat ${mission.coins} koin!`, "success");
-      },
-      mission,
-      "Verifikasi Orang Tua",
-      "Masukkan PIN untuk mengklaim misi ini"
-    );
-  };
+      if (pinModal.isChangingPin) {
+        setParentPin(inputPin);
+        showToast("PIN berhasil diubah!", "success");
+        setIsOldPinVerified(true);
+      } else if (verifyPin(inputPin)) {
+        pinModal.action?.(pinModal.data);
+        showToast("Verifikasi berhasil!", "success");
+      } else {
+        showToast("PIN salah!", "error");
+      }
+      setPinModal((prev) => ({ ...prev, isOpen: false, action: null, isChangingPin: false }));
+    },
+    [pinModal, showToast]
+  );
 
-  const redeemReward = (reward) => {
-    if (coins < reward.price) {
-      showToast("Koin tidak cukup!", "error");
-      return;
-    }
-    if (claimedRewards.includes(reward.id)) {
-      showToast("Hadiah sudah ditukar!", "error");
-      return;
-    }
-    requestPinVerification(
-      () => {
-        setCoins(coins - reward.price);
-        setClaimedRewards([...claimedRewards, reward.id]);
-        showToast(`Selamat! Kamu mendapatkan ${reward.name}!`, "success");
-      },
-      reward,
-      "Verifikasi Penukaran Hadiah",
-      "Masukkan PIN orang tua untuk menukar hadiah ini"
-    );
-  };
+  const requestPinVerification = useCallback(
+    (action, data, title, description, isChangingPin = false) => {
+      setPinModal({ isOpen: true, action, data, title, description, isChangingPin });
+    },
+    []
+  );
 
-  const handleSetNewPin = () => {
+  // ✅ Mission & Reward Handlers
+  const claimMission = useCallback(
+    (mission) => {
+      if (completedMissions.includes(mission.id)) {
+        showToast("Misi sudah selesai!", "error");
+        return;
+      }
+      requestPinVerification(
+        () => {
+          setCompletedMissions((prev) => [...prev, mission.id]);
+          setCoins((prev) => prev + mission.coins);
+          showToast(`Selamat! Kamu mendapat ${mission.coins} koin!`, "success");
+        },
+        mission,
+        "Verifikasi Orang Tua",
+        "Masukkan PIN untuk mengklaim misi ini"
+      );
+    },
+    [completedMissions, requestPinVerification, showToast]
+  );
+
+  const redeemReward = useCallback(
+    (reward) => {
+      if (coins < reward.price) {
+        showToast("Koin tidak cukup!", "error");
+        return;
+      }
+      if (claimedRewards.includes(reward.id)) {
+        showToast("Hadiah sudah ditukar!", "error");
+        return;
+      }
+      requestPinVerification(
+        () => {
+          setCoins((prev) => prev - reward.price);
+          setClaimedRewards((prev) => [...prev, reward.id]);
+          showToast(`Selamat! Kamu mendapatkan ${reward.name}!`, "success");
+        },
+        reward,
+        "Verifikasi Penukaran Hadiah",
+        "Masukkan PIN orang tua untuk menukar hadiah ini"
+      );
+    },
+    [coins, claimedRewards, requestPinVerification, showToast]
+  );
+
+  const handleSetNewPin = useCallback(() => {
     requestPinVerification(
       () => {
         requestPinVerification(
@@ -158,18 +183,21 @@ const App = () => {
       "Verifikasi PIN Lama",
       "Masukkan PIN lama untuk melanjutkan"
     );
-  };
+  }, [requestPinVerification]);
 
-  const handleSaveName = (name) => {
-    const trimmedName = name.trim();
-    if (trimmedName.length < 2) {
-      showToast("Nama harus lebih dari 1 huruf!", "error");
-      return;
-    }
-    setChildName(trimmedName);
-    setIsNameModalOpen(false);
-    showToast(`Halo, ${trimmedName}!`, "success");
-  };
+  const handleSaveName = useCallback(
+    (name) => {
+      const trimmedName = name.trim();
+      if (trimmedName.length < 2) {
+        showToast("Nama harus lebih dari 1 huruf!", "error");
+        return;
+      }
+      setChildName(trimmedName);
+      setIsNameModalOpen(false);
+      showToast(`Halo, ${trimmedName}!`, "success");
+    },
+    [setChildName, showToast]
+  );
 
   const navigationItems = [
     { id: "missions", label: "Misi", icon: "🏠" },
@@ -183,7 +211,6 @@ const App = () => {
 
   return (
     <>
-      {/* ✅ Helmet Global */}
       <Helmet>
         <html lang="id" />
         <title>Bantu Ayah Ibu 👨‍👩‍👧</title>
@@ -193,40 +220,41 @@ const App = () => {
         />
       </Helmet>
 
-      {/* ✅ Gunakan main sebagai container halaman */}
       <main className="font-sans bg-gray-50 min-h-screen pb-16">
-        {activePage === "missions" && (
-          <MissionsPage
-            missions={missions}
-            completedMissions={completedMissions}
-            onClaimMission={claimMission}
-            coins={coins}
-          />
-        )}
+        <Suspense fallback={<div className="text-center py-10">Loading halaman...</div>}>
+          {activePage === "missions" && (
+            <MissionsPage
+              missions={missions}
+              completedMissions={completedMissions}
+              onClaimMission={claimMission}
+              coins={coins}
+            />
+          )}
 
-        {activePage === "rewards" && (
-          <RewardsPage
-            rewards={rewards}
-            coins={coins}
-            onRedeemReward={redeemReward}
-            claimedRewards={claimedRewards}
-          />
-        )}
+          {activePage === "rewards" && (
+            <RewardsPage
+              rewards={rewards}
+              coins={coins}
+              onRedeemReward={redeemReward}
+              claimedRewards={claimedRewards}
+            />
+          )}
 
-        {activePage === "profile" && (
-          <ProfilePage
-            coins={coins}
-            completedMissions={completedMissions}
-            totalMissions={missions.length}
-            streak={streak}
-            onSetPin={handleSetNewPin}
-            isOldPinVerified={isOldPinVerified}
-            childName={childName}
-          />
-        )}
+          {activePage === "profile" && (
+            <ProfilePage
+              coins={coins}
+              completedMissions={completedMissions}
+              totalMissions={missions.length}
+              streak={streak}
+              onSetPin={handleSetNewPin}
+              isOldPinVerified={isOldPinVerified}
+              childName={childName}
+            />
+          )}
+        </Suspense>
       </main>
 
-      {/* ✅ Bottom Navigation dengan role navigation */}
+      {/* ✅ Bottom Navigation optimized */}
       <nav
         className="fixed bottom-0 left-0 right-0 bg-white border-t border-gray-200 shadow-md"
         role="navigation"
@@ -238,7 +266,7 @@ const App = () => {
               <button
                 key={item.id}
                 onClick={() => setActivePage(item.id)}
-                className={`flex flex-col items-center py-3 px-4 transition-all ${
+                className={`flex flex-col items-center py-3 px-4 transition-transform ${
                   activePage === item.id
                     ? "text-purple-600 scale-110"
                     : "text-gray-500 hover:text-gray-700"
@@ -255,23 +283,15 @@ const App = () => {
       {/* Modals */}
       <ModalPIN
         isOpen={pinModal.isOpen}
-        onClose={() => setPinModal(prev => ({ ...prev, isOpen: false }))}
+        onClose={() => setPinModal((prev) => ({ ...prev, isOpen: false }))}
         onConfirm={handlePinVerification}
         title={pinModal.title}
         description={pinModal.description}
       />
 
-      {isNameModalOpen && (
-        <ModalInputName onSave={handleSaveName} defaultValue="" />
-      )}
+      {isNameModalOpen && <ModalInputName onSave={handleSaveName} defaultValue="" />}
 
-      {toast.message && (
-        <ToastMessage
-          message={toast.message}
-          type={toast.type}
-          onClose={closeToast}
-        />
-      )}
+      {toast.message && <ToastMessage message={toast.message} type={toast.type} onClose={closeToast} />}
     </>
   );
 };

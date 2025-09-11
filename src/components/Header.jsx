@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { memo } from 'react';
 import { useName } from '../context/NameContext';
 
 const Header = ({ coins }) => {
@@ -18,4 +18,4 @@ const Header = ({ coins }) => {
   );
 };
 
-export default Header;
+export default memo(Header);
