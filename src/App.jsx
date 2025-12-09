@@ -39,7 +39,20 @@ const App = () => {
   const [isNameModalOpen, setIsNameModalOpen] = useState(false);
 
   // Sound Effects
-  const { playSound } = useSound();
+  const { playSound, playBGM, toggleMute, isMuted } = useSound();
+  const [hasInteracted, setHasInteracted] = useState(false);
+
+  // Start BGM on first interaction
+  useEffect(() => {
+    const startAudio = () => {
+      if (!hasInteracted) {
+        playBGM();
+        setHasInteracted(true);
+      }
+    };
+    window.addEventListener('click', startAudio);
+    return () => window.removeEventListener('click', startAudio);
+  }, [hasInteracted, playBGM]);
 
   // ✅ Load persisted data on mount
   useEffect(() => {
@@ -241,6 +254,17 @@ const App = () => {
       <main className="font-fun min-h-screen pb-20 relative overflow-hidden">
         {/* Animated Gradient Background */}
         <div className="fixed inset-0 bg-gradient-game -z-10" />
+
+        {/* Floating Mute Button */}
+        <button
+          onClick={toggleMute}
+          className="fixed top-4 right-4 z-50 bg-white/20 backdrop-blur-md p-2 rounded-full shadow-lg border border-white/30 hover:bg-white/30 transition-all active:scale-95"
+          aria-label={isMuted ? "Unmute sound" : "Mute sound"}
+        >
+          <span className="text-xl filter drop-shadow-md">
+            {isMuted ? "🔇" : "🔊"}
+          </span>
+        </button>
 
         {/* Floating Stars Background */}
         <div className="fixed inset-0 -z-5 pointer-events-none">
