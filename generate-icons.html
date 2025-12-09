@@ -1,0 +1,89 @@
+<!DOCTYPE html>
+<html>
+
+<head>
+    <meta charset="UTF-8">
+    <title>Generate PWA Icons</title>
+</head>
+
+<body>
+    <canvas id="canvas192" width="192" height="192"></canvas>
+    <canvas id="canvas512" width="512" height="512"></canvas>
+    <canvas id="canvasApple" width="180" height="180"></canvas>
+
+    <div>
+        <h3>Right-click and "Save image as..." for each icon:</h3>
+        <div>
+            <p>192x192:</p>
+            <img id="img192" />
+            <a id="download192" download="icon-192.png">Download 192x192</a>
+        </div>
+        <div>
+            <p>512x512:</p>
+            <img id="img512" />
+            <a id="download512" download="icon-512.png">Download 512x512</a>
+        </div>
+        <div>
+            <p>Apple Touch Icon (180x180):</p>
+            <img id="imgApple" />
+            <a id="downloadApple" download="apple-touch-icon.png">Download Apple Icon</a>
+        </div>
+    </div>
+
+    <script>
+        function drawIcon(canvas, size) {
+            const ctx = canvas.getContext('2d');
+
+            // Gradient background
+            const gradient = ctx.createLinearGradient(0, 0, size, size);
+            gradient.addColorStop(0, '#8B5CF6');
+            gradient.addColorStop(1, '#EC4899');
+
+            // Rounded rectangle
+            const radius = size * 0.2;
+            ctx.beginPath();
+            ctx.moveTo(radius, 0);
+            ctx.lineTo(size - radius, 0);
+            ctx.quadraticCurveTo(size, 0, size, radius);
+            ctx.lineTo(size, size - radius);
+            ctx.quadraticCurveTo(size, size, size - radius, size);
+            ctx.lineTo(radius, size);
+            ctx.quadraticCurveTo(0, size, 0, size - radius);
+            ctx.lineTo(0, radius);
+            ctx.quadraticCurveTo(0, 0, radius, 0);
+            ctx.closePath();
+            ctx.fillStyle = gradient;
+            ctx.fill();
+
+            // Emoji
+            ctx.font = `${size * 0.5}px Arial`;
+            ctx.textAlign = 'center';
+            ctx.textBaseline = 'middle';
+            ctx.fillText('👨‍👩‍👧', size / 2, size / 2);
+        }
+
+        // Generate all icons
+        drawIcon(document.getElementById('canvas192'), 192);
+        drawIcon(document.getElementById('canvas512'), 512);
+        drawIcon(document.getElementById('canvasApple'), 180);
+
+        // Convert to downloadable images
+        const canvas192 = document.getElementById('canvas192');
+        const canvas512 = document.getElementById('canvas512');
+        const canvasApple = document.getElementById('canvasApple');
+
+        const dataUrl192 = canvas192.toDataURL('image/png');
+        const dataUrl512 = canvas512.toDataURL('image/png');
+        const dataUrlApple = canvasApple.toDataURL('image/png');
+
+        document.getElementById('img192').src = dataUrl192;
+        document.getElementById('img512').src = dataUrl512;
+        document.getElementById('imgApple').src = dataUrlApple;
+
+        document.getElementById('download192').href = dataUrl192;
+        document.getElementById('download512').href = dataUrl512;
+        document.getElementById('downloadApple').href = dataUrlApple;
+    </script>
+</body>
+
+</html>

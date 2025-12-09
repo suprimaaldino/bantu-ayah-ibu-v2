@@ -13,6 +13,7 @@ import { useName } from "./context/NameContext";
 const MissionsPage = lazy(() => import("./pages/MissionsPage.jsx"));
 const RewardsPage = lazy(() => import("./pages/RewardsPage.jsx"));
 const ProfilePage = lazy(() => import("./pages/ProfilePage.jsx"));
+const InstallPrompt = lazy(() => import("./components/InstallPrompt.jsx"));
 
 const App = () => {
   // State Management
@@ -322,6 +323,11 @@ const App = () => {
       {isNameModalOpen && <ModalInputName onSave={handleSaveName} defaultValue="" />}
 
       {toast.message && <ToastMessage message={toast.message} type={toast.type} onClose={closeToast} />}
+
+      {/* PWA Install Prompt */}
+      <Suspense fallback={null}>
+        <InstallPrompt />
+      </Suspense>
     </>
   );
 };

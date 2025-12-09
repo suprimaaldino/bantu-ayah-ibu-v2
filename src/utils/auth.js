@@ -1,5 +1,5 @@
 export const getParentPin = () => {
-  return localStorage.getItem("parentPin") || import.meta.env.VITE_PARENT_PIN || "000000";
+  return localStorage.getItem("parentPin") || import.meta.env.VITE_PARENT_PIN || "010390";
 };
 
 export const verifyPin = (inputPin) => {
