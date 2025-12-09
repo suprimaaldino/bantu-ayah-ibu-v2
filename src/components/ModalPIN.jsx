@@ -3,8 +3,7 @@ import React, { useState, useCallback } from 'react';
 const ModalPIN = ({ isOpen, onClose, onConfirm, title, description }) => {
   const [pin, setPin] = useState("");
 
-  if (!isOpen) return null;
-
+  // ✅ All hooks MUST be called before any conditional returns
   const handleSubmit = useCallback(() => {
     onConfirm(pin);
     setPin("");
@@ -16,9 +15,12 @@ const ModalPIN = ({ isOpen, onClose, onConfirm, title, description }) => {
     }
   }, [handleSubmit]);
 
+  // ✅ Early return AFTER all hooks
+  if (!isOpen) return null;
+
   return (
     <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
-      <div className="bg-white rounded-2xl p-6 shadow-lg max-w-sm w-full mx-4 text-center animate-fade-in">
+      <div className="bg-white rounded-2xl p-6 shadow-lg max-w-sm w-full mx-4 text-center animate-fade-in-up">
         <div className="text-4xl mb-4">🔒</div>
         <h2 className="text-xl font-bold mb-2">{title}</h2>
         <p className="text-gray-600 mb-4">{description}</p>
@@ -44,7 +46,7 @@ const ModalPIN = ({ isOpen, onClose, onConfirm, title, description }) => {
             disabled={pin.length === 0}
             className="flex-1 bg-purple-500 text-white py-3 rounded-lg font-semibold hover:bg-purple-600 disabled:bg-gray-300 disabled:cursor-not-allowed active:scale-95 transition-transform"
           >
-            Konfirm
+            Konfirmasi
           </button>
         </div>
       </div>

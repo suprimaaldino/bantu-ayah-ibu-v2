@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useCallback, lazy, Suspense } from "react";
-import { Helmet } from "react-helmet";
+import { Helmet } from "react-helmet-async";
 import missions from "./data/missions.js";
 import rewards from "./data/rewards.js";
 import ToastMessage from "./components/ToastMessage.jsx";
@@ -20,6 +20,7 @@ const App = () => {
   const [completedMissions, setCompletedMissions] = useState([]);
   const [claimedRewards, setClaimedRewards] = useState([]);
   const [streak, setStreak] = useState(1);
+  const [missionClaimCount, setMissionClaimCount] = useState({});
   const [toast, setToast] = useState({ message: "", type: "" });
   const [activePage, setActivePage] = useState("missions");
   const [pinModal, setPinModal] = useState({
@@ -42,12 +43,14 @@ const App = () => {
       const savedCompletedMissions = getFromStorage("completedMissions", []);
       const savedClaimedRewards = getFromStorage("claimedRewards", []);
       const savedStreak = getFromStorage("streak", 1);
+      const savedMissionClaimCount = getFromStorage("missionClaimCount", {});
       const lastVisit = getFromStorage("lastVisit", null);
 
       setCoins(savedCoins);
       setCompletedMissions(savedCompletedMissions);
       setClaimedRewards(savedClaimedRewards);
       setStreak(savedStreak);
+      setMissionClaimCount(savedMissionClaimCount);
 
       // Streak calculation
       const today = new Date().toDateString();
@@ -90,6 +93,11 @@ const App = () => {
     return () => clearTimeout(t);
   }, [claimedRewards]);
 
+  useEffect(() => {
+    const t = setTimeout(() => saveToStorage("missionClaimCount", missionClaimCount), 300);
+    return () => clearTimeout(t);
+  }, [missionClaimCount]);
+
   // ✅ Memoized Functions
   const showToast = useCallback((message, type = "success") => setToast({ message, type }), []);
   const closeToast = useCallback(() => setToast({ message: "", type: "" }), []);
@@ -126,22 +134,22 @@ const App = () => {
   // ✅ Mission & Reward Handlers
   const claimMission = useCallback(
     (mission) => {
-      if (completedMissions.includes(mission.id)) {
-        showToast("Misi sudah selesai!", "error");
-        return;
-      }
       requestPinVerification(
         () => {
-          setCompletedMissions((prev) => [...prev, mission.id]);
           setCoins((prev) => prev + mission.coins);
-          showToast(`Selamat! Kamu mendapat ${mission.coins} koin!`, "success");
+          setMissionClaimCount((prev) => ({
+            ...prev,
+            [mission.id]: (prev[mission.id] || 0) + 1
+          }));
+          const newCount = (missionClaimCount[mission.id] || 0) + 1;
+          showToast(`Selamat! Kamu mendapat ${mission.coins} koin! (${newCount}x diklaim)`, "success");
         },
         mission,
         "Verifikasi Orang Tua",
         "Masukkan PIN untuk mengklaim misi ini"
       );
     },
-    [completedMissions, requestPinVerification, showToast]
+    [requestPinVerification, showToast, missionClaimCount]
   );
 
   const redeemReward = useCallback(
@@ -220,14 +228,35 @@ const App = () => {
         />
       </Helmet>
 
-      <main className="font-sans bg-gray-50 min-h-screen pb-16">
-        <Suspense fallback={<div className="text-center py-10">Loading halaman...</div>}>
+      {/* 🎮 Main Game Container with Animated Background */}
+      <main className="font-fun min-h-screen pb-20 relative overflow-hidden">
+        {/* Animated Gradient Background */}
+        <div className="fixed inset-0 bg-gradient-game -z-10" />
+
+        {/* Floating Stars Background */}
+        <div className="fixed inset-0 -z-5 pointer-events-none">
+          <div className="absolute top-10 left-10 text-4xl animate-twinkle">⭐</div>
+          <div className="absolute top-20 right-20 text-3xl animate-twinkle" style={{ animationDelay: '0.5s' }}>✨</div>
+          <div className="absolute top-40 left-1/4 text-2xl animate-twinkle" style={{ animationDelay: '1s' }}>💫</div>
+          <div className="absolute top-60 right-1/3 text-3xl animate-twinkle" style={{ animationDelay: '1.5s' }}>🌟</div>
+          <div className="absolute bottom-40 left-1/3 text-4xl animate-twinkle" style={{ animationDelay: '2s' }}>⭐</div>
+          <div className="absolute bottom-60 right-1/4 text-2xl animate-twinkle" style={{ animationDelay: '2.5s' }}>✨</div>
+        </div>
+
+        <Suspense fallback={
+          <div className="flex items-center justify-center h-screen">
+            <div className="text-center">
+              <div className="text-6xl animate-bounce-slow mb-4">🎮</div>
+              <div className="text-white font-bold text-xl">Loading...</div>
+            </div>
+          </div>
+        }>
           {activePage === "missions" && (
             <MissionsPage
               missions={missions}
-              completedMissions={completedMissions}
               onClaimMission={claimMission}
               coins={coins}
+              missionClaimCount={missionClaimCount}
             />
           )}
 
@@ -254,26 +283,27 @@ const App = () => {
         </Suspense>
       </main>
 
-      {/* ✅ Bottom Navigation optimized */}
+      {/* 🎨 Game-Style Bottom Navigation */}
       <nav
-        className="fixed bottom-0 left-0 right-0 bg-white border-t border-gray-200 shadow-md"
+        className="fixed bottom-0 left-0 right-0 glass-white border-t-2 border-white/30 shadow-glow-purple z-50"
         role="navigation"
         aria-label="Navigasi bawah"
       >
         <div className="max-w-md mx-auto">
-          <div className="flex justify-around">
+          <div className="flex justify-around items-center py-2">
             {navigationItems.map((item) => (
               <button
                 key={item.id}
                 onClick={() => setActivePage(item.id)}
-                className={`flex flex-col items-center py-3 px-4 transition-transform ${
-                  activePage === item.id
-                    ? "text-purple-600 scale-110"
-                    : "text-gray-500 hover:text-gray-700"
-                }`}
+                className={`flex flex-col items-center py-3 px-6 rounded-2xl transition-all duration-300 ${activePage === item.id
+                  ? 'bg-gradient-purple-pink text-white scale-110 shadow-glow-purple animate-bounce-slow'
+                  : 'text-gray-600 hover:text-game-purple hover:scale-105'
+                  }`}
               >
-                <span className="text-xl">{item.icon}</span>
-                <span className="text-xs mt-1">{item.label}</span>
+                <span className={`text-3xl mb-1 ${activePage === item.id ? 'animate-wiggle' : ''}`}>
+                  {item.icon}
+                </span>
+                <span className="text-xs font-bold uppercase tracking-wide">{item.label}</span>
               </button>
             ))}
           </div>
