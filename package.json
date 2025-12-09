@@ -6,6 +6,7 @@
   "homepage": "https://suprimaaldino.github.io/bantu-ayah-ibu-v2",
   "scripts": {
     "dev": "vite",
+    "dev:host": "vite --host",
     "build": "vite build",
     "preview": "vite preview",
     "build:gh": "cross-env GITHUB_PAGES=true vite build",

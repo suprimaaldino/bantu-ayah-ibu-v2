@@ -5,6 +5,7 @@ import rewards from "./data/rewards.js";
 import ToastMessage from "./components/ToastMessage.jsx";
 import ModalPIN from "./components/ModalPIN.jsx";
 import ModalInputName from "./components/ModalInputName.jsx";
+import useSound from "./hooks/useSound.js";
 import { getFromStorage, saveToStorage } from "./utils/storage.js";
 import { verifyPin, setParentPin } from "./utils/auth.js";
 import { useName } from "./context/NameContext";
@@ -36,6 +37,9 @@ const App = () => {
   // Name Context
   const { name: childName, setName: setChildName, isLoading: isNameLoading } = useName();
   const [isNameModalOpen, setIsNameModalOpen] = useState(false);
+
+  // Sound Effects
+  const { playSound } = useSound();
 
   // ✅ Load persisted data on mount
   useEffect(() => {
@@ -143,6 +147,7 @@ const App = () => {
             [mission.id]: (prev[mission.id] || 0) + 1
           }));
           const newCount = (missionClaimCount[mission.id] || 0) + 1;
+          playSound('success');
           showToast(`Selamat! Kamu mendapat ${mission.coins} koin! (${newCount}x diklaim)`, "success");
         },
         mission,
@@ -150,16 +155,18 @@ const App = () => {
         "Masukkan PIN untuk mengklaim misi ini"
       );
     },
-    [requestPinVerification, showToast, missionClaimCount]
+    [requestPinVerification, showToast, missionClaimCount, playSound]
   );
 
   const redeemReward = useCallback(
     (reward) => {
       if (coins < reward.price) {
+        playSound('error');
         showToast("Koin tidak cukup!", "error");
         return;
       }
       if (claimedRewards.includes(reward.id)) {
+        playSound('error');
         showToast("Hadiah sudah ditukar!", "error");
         return;
       }
@@ -167,6 +174,7 @@ const App = () => {
         () => {
           setCoins((prev) => prev - reward.price);
           setClaimedRewards((prev) => [...prev, reward.id]);
+          playSound('reward');
           showToast(`Selamat! Kamu mendapatkan ${reward.name}!`, "success");
         },
         reward,
@@ -174,7 +182,7 @@ const App = () => {
         "Masukkan PIN orang tua untuk menukar hadiah ini"
       );
     },
-    [coins, claimedRewards, requestPinVerification, showToast]
+    [coins, claimedRewards, requestPinVerification, showToast, playSound]
   );
 
   const handleSetNewPin = useCallback(() => {
@@ -295,7 +303,10 @@ const App = () => {
             {navigationItems.map((item) => (
               <button
                 key={item.id}
-                onClick={() => setActivePage(item.id)}
+                onClick={() => {
+                  playSound('click');
+                  setActivePage(item.id);
+                }}
                 className={`flex flex-col items-center py-3 px-6 rounded-2xl transition-all duration-300 ${activePage === item.id
                   ? 'bg-gradient-purple-pink text-white scale-110 shadow-glow-purple animate-bounce-slow'
                   : 'text-gray-600 hover:text-game-purple hover:scale-105'
