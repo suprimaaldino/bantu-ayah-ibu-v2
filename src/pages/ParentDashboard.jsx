@@ -96,6 +96,7 @@ const ParentDashboard = ({
           <ApprovalsList
             claims={pendingClaims}
             missions={missions}
+            rewards={rewards}
             onApprove={onApproveClaim}
             onReject={onRejectClaim}
           />

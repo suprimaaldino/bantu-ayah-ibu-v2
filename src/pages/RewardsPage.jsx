@@ -2,7 +2,7 @@ import React from 'react';
 import { Helmet } from 'react-helmet-async';
 import Header from '../components/Header';
 
-const RewardsPage = ({ rewards, coins, onRedeemReward, claimedRewards }) => {
+const RewardsPage = ({ rewards, coins, onRedeemReward, claimedRewards, pendingClaims = [] }) => {
   const getRewardCategory = (price) => {
     if (price < 50) return { emoji: "🎁", label: "Hadiah Kecil", gradient: "bg-gradient-blue-cyan" };
     if (price < 100) return { emoji: "🧃", label: "Hadiah Menengah", gradient: "bg-gradient-orange-yellow" };
@@ -47,55 +47,52 @@ const RewardsPage = ({ rewards, coins, onRedeemReward, claimedRewards }) => {
                   style={{ animationDelay: `${index * 0.1}s` }}
                 >
                   {/* Single Row Layout */}
-                  <div className="flex items-center gap-3">
-                    {/* Reward Icon */}
-                    <div className={`text-3xl sm:text-4xl p-2.5 sm:p-3 rounded-2xl ${category.gradient} shadow-lg flex-shrink-0 ${!canAfford && !isClaimed ? 'grayscale opacity-50' : 'animate-bounce-slow'}`}>
-                      {category.emoji}
-                    </div>
+                  <div className="flex flex-col gap-3">
+                    <div className="flex items-center gap-3">
+                      {/* Reward Icon */}
+                      <div className={`text-3xl sm:text-4xl p-2.5 sm:p-3 rounded-2xl ${category.gradient} shadow-lg flex-shrink-0 ${!canAfford && !isClaimed ? 'grayscale opacity-50' : 'animate-bounce-slow'}`}>
+                        {category.emoji}
+                      </div>
 
-                    {/* Reward Info */}
-                    <div className="flex-1 min-w-0">
-                      {/* Lock Badge Above Title */}
-                      {!canAfford && !isClaimed && (
-                        <div className="mb-0.5">
-                          <span className="text-xs bg-red-100 text-red-600 px-2 py-0.5 rounded-full font-bold whitespace-nowrap inline-block">
-                            🔒 Terkunci
-                          </span>
-                        </div>
-                      )}
+                      {/* Reward Info */}
+                      <div className="flex-1 min-w-0">
+                        {/* Lock Badge Above Title */}
+                        {!canAfford && !isClaimed && (
+                          <div className="mb-0.5">
+                            <span className="text-xs bg-red-100 text-red-600 px-2 py-0.5 rounded-full font-bold whitespace-nowrap inline-block">
+                              🔒 Terkunci
+                            </span>
+                          </div>
+                        )}
 
-                      {/* Title */}
-                      <h3 className="font-game font-bold text-gray-800 text-sm sm:text-base mb-1">
-                        {reward.name}
-                      </h3>
+                        {/* Title */}
+                        <h3 className="font-game font-bold text-gray-800 text-sm sm:text-base mb-1">
+                          {reward.name}
+                        </h3>
 
-                      {/* Price and Button in One Row */}
-                      <div className="flex items-center gap-2">
                         {/* Price Tag */}
                         <div className="inline-flex items-center gap-1.5 bg-gradient-orange-yellow px-2.5 py-0.5 rounded-full shadow-md flex-shrink-0">
                           <span className="text-sm">💰</span>
                           <span className="font-game font-bold text-white text-xs sm:text-sm whitespace-nowrap">{reward.price} koin</span>
                         </div>
-
-                        {/* Action Button - Bigger like Mission Page */}
-                        {isClaimed ? (
-                          <div className="bg-gradient-green-teal text-white px-3 sm:px-4 py-2 sm:py-2.5 rounded-full font-game font-bold text-xs sm:text-sm shadow-glow-green whitespace-nowrap">
-                            ✅ Ditukar
-                          </div>
-                        ) : (
-                          <button
-                            onClick={() => onRedeemReward(reward)}
-                            disabled={!canAfford}
-                            className={`btn-game px-4 sm:px-6 py-2 sm:py-2.5 rounded-full font-game font-bold text-xs sm:text-sm transition-all duration-300 whitespace-nowrap flex-1 ${canAfford
-                              ? "bg-gradient-purple-pink text-white shadow-glow-purple hover:scale-105 active:scale-95"
-                              : "bg-gray-300 text-gray-500 cursor-not-allowed opacity-50"
-                              }`}
-                          >
-                            {canAfford ? "🎁 Tukar" : "💔 Kurang"}
-                          </button>
-                        )}
                       </div>
                     </div>
+
+                    {/* Quantity and Action Row */}
+                    {!isClaimed && (
+                      <RewardAction
+                        reward={reward}
+                        coins={coins}
+                        onRedeem={onRedeemReward}
+                        isPending={pendingClaims.some(c => c.itemId === reward.id && c.type === 'reward')}
+                      />
+                    )}
+
+                    {isClaimed && (
+                      <div className="bg-gradient-green-teal text-white px-3 sm:px-4 py-2 sm:py-2.5 rounded-full font-game font-bold text-xs sm:text-sm shadow-glow-green whitespace-nowrap text-center">
+                        ✅ Ditukar
+                      </div>
+                    )}
                   </div>
 
                   {/* Shimmer Effect for Unlocked Items */}
@@ -121,6 +118,57 @@ const RewardsPage = ({ rewards, coins, onRedeemReward, claimedRewards }) => {
         </div>
       </div>
     </>
+  );
+};
+
+const RewardAction = ({ reward, coins, onRedeem, isPending }) => {
+  const [quantity, setQuantity] = React.useState(1);
+  const totalCost = reward.price * quantity;
+  const canAfford = coins >= totalCost;
+
+  const handleIncrement = () => setQuantity(q => q + 1);
+  const handleDecrement = () => setQuantity(q => Math.max(1, q - 1));
+
+  return (
+    <div className="flex items-center justify-between bg-gray-50 rounded-xl p-2">
+      {/* Quantity Controls */}
+      <div className="flex items-center bg-white rounded-lg border border-gray-200 shadow-sm">
+        <button
+          onClick={handleDecrement}
+          disabled={quantity <= 1 || isPending}
+          className="w-8 h-8 flex items-center justify-center text-gray-500 hover:bg-gray-100 rounded-l-lg disabled:opacity-50"
+        >
+          -
+        </button>
+        <span className="w-8 text-center font-bold text-gray-700">{quantity}</span>
+        <button
+          onClick={handleIncrement}
+          disabled={!canAfford || isPending}
+          className="w-8 h-8 flex items-center justify-center text-gray-500 hover:bg-gray-100 rounded-r-lg disabled:opacity-50"
+        >
+          +
+        </button>
+      </div>
+
+      {/* Total & Action */}
+      <button
+        onClick={() => onRedeem(reward, quantity)}
+        disabled={!canAfford || isPending}
+        className={`flex-1 ml-3 py-2 px-4 rounded-lg font-bold text-xs sm:text-sm shadow-md transition-all whitespace-nowrap
+          ${isPending
+            ? 'bg-yellow-200 text-yellow-700 cursor-not-allowed'
+            : canAfford
+              ? 'bg-gradient-purple-pink text-white hover:scale-105 active:scale-95 shadow-glow-purple'
+              : 'bg-gray-300 text-gray-500 cursor-not-allowed'
+          }`}
+      >
+        {isPending
+          ? '⏳ Menunggu...'
+          : canAfford
+            ? `Tukar (${totalCost})`
+            : '💔 Kurang'}
+      </button>
+    </div>
   );
 };
 

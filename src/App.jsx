@@ -181,17 +181,20 @@ const App = () => {
 
   // ✅ Mission & Reward Handlers
   // ✅ NEW: Request Claim (Child)
-  const handleRequestClaim = useCallback((mission) => {
-    // Check if already pending
-    const isPending = pendingClaims.some(c => c.missionId === mission.id);
+  // ✅ NEW: Request Claim (Child)
+  const handleRequestClaim = useCallback((item, type = 'mission', quantity = 1) => {
+    // Check if already pending (simplified check for now)
+    const isPending = pendingClaims.some(c => c.itemId === item.id && c.type === type);
     if (isPending) {
-      showToast("Misi ini sedang menunggu persetujuan orang tua", "info");
+      showToast(`${type === 'mission' ? 'Misi' : 'Hadiah'} ini sedang menunggu persetujuan orang tua`, "info");
       return;
     }
 
     const newClaim = {
       id: Date.now(),
-      missionId: mission.id,
+      itemId: item.id,
+      type: type, // 'mission' or 'reward'
+      quantity: quantity,
       timestamp: new Date().toISOString(),
       childName: childName,
       status: 'pending'
@@ -203,22 +206,42 @@ const App = () => {
   }, [pendingClaims, childName, playSound, showToast]);
 
   // ✅ NEW: Approve Claim (Parent)
+  // ✅ NEW: Approve Claim (Parent)
   const handleApproveClaim = useCallback((claim) => {
-    const mission = missionsList.find(m => m.id === claim.missionId);
-    if (!mission) return;
+    if (claim.type === 'reward') {
+      const reward = rewardsList.find(r => r.id === claim.itemId);
+      if (!reward) return;
 
-    setCoins((prev) => prev + mission.coins);
-    setMissionClaimCount((prev) => ({
-      ...prev,
-      [mission.id]: (prev[mission.id] || 0) + 1
-    }));
+      const quantity = claim.quantity || 1;
+      const totalCost = reward.price * quantity;
+
+      if (coins < totalCost) {
+        showToast("Koin anak tidak cukup untuk hadiah ini", "error");
+        return;
+      }
+
+      setCoins((prev) => prev - totalCost);
+      // Logic for tracked claimed rewards might need update if we allow multiple claims of same item
+      // For now, we just add it to history but don't prevent re-claiming in UI unless we want unique only
+      setClaimedRewards((prev) => [...prev, reward.id]);
+      showToast(`Hadiah ${reward.name} (x${quantity}) disetujui!`, "success");
+    } else {
+      // Default to mission if type is missing or 'mission'
+      const mission = missionsList.find(m => m.id === claim.itemId || m.id === claim.missionId); // Fallback for old claims
+      if (!mission) return;
+
+      setCoins((prev) => prev + mission.coins);
+      setMissionClaimCount((prev) => ({
+        ...prev,
+        [mission.id]: (prev[mission.id] || 0) + 1
+      }));
+      showToast(`Klaim misi disetujui! Koin bertambah ` + mission.coins, "success");
+    }
 
     // Remove from pending
     setPendingClaims(prev => prev.filter(c => c.id !== claim.id));
-
     playSound('success');
-    showToast(`Klaim disetujui! Koin bertambah ` + mission.coins, "success");
-  }, [missionsList, playSound, showToast]);
+  }, [missionsList, rewardsList, coins, playSound, showToast]);
 
   // ✅ NEW: Reject Claim (Parent)
   const handleRejectClaim = useCallback((claimId) => {
@@ -229,7 +252,7 @@ const App = () => {
   // ✅ Mission & Reward Handlers
   const claimMission = useCallback(
     (mission) => {
-      handleRequestClaim(mission);
+      handleRequestClaim(mission, 'mission');
     },
     [handleRequestClaim]
   );
@@ -247,19 +270,10 @@ const App = () => {
         showToast("Hadiah sudah ditukar!", "error");
         return;
       }
-      requestPinVerification(
-        () => {
-          setCoins((prev) => prev - reward.price);
-          setClaimedRewards((prev) => [...prev, reward.id]);
-          playSound('reward');
-          showToast(`Selamat! Kamu mendapatkan ${reward.name}!`, "success");
-        },
-        reward,
-        "Verifikasi Penukaran Hadiah",
-        "Masukkan PIN orang tua untuk menukar hadiah ini"
-      );
+
+      handleRequestClaim(reward, 'reward');
     },
-    [coins, claimedRewards, requestPinVerification, showToast, playSound]
+    [coins, claimedRewards, handleRequestClaim, showToast, playSound]
   );
 
   const handleSetNewPin = useCallback(() => {
