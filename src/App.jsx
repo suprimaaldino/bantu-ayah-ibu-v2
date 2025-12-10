@@ -6,7 +6,6 @@ import ModalInputName from "./components/ModalInputName.jsx";
 import LoginPage from "./pages/LoginPage.jsx";
 import useSound from "./hooks/useSound.js";
 import useFamilyData from "./hooks/useFamilyData.js";
-import { verifyPin } from "./utils/auth.js"; // Note: We might override verifyPin logic to use synced PIN
 import { useName } from "./context/NameContext";
 
 // ✅ Lazy Load pages
@@ -19,12 +18,14 @@ const ParentDashboard = lazy(() => import("./pages/ParentDashboard.jsx"));
 const App = () => {
   // --- Real-time Data Hook ---
   const {
-    familyId,           // Add familyId here!
+    familyId,
     isAuthenticated,
     isLoading: isDataLoading,
     error: dataError,
     createFamily,
     joinFamily,
+    joinFamilyAsChild,
+    resetPinWithSecret,
     leaveFamily,
     missions,       // Synced List
     rewards,        // Synced List
@@ -120,11 +121,10 @@ const App = () => {
   const showToast = useCallback((message, type = "success") => setToast({ message, type }), []);
   const closeToast = useCallback(() => setToast({ message: "", type: "" }), []);
 
-  // Handler for Login Page
-  const handleCreateFamily = async (familyName, customPin) => {
+  const handleCreateFamily = async (familyName, customPin, secretWord) => {
     setIsJoining(true);
-    const result = await createFamily(familyName, customPin);
-    setIsJoining(false); // Reset immediately after createFamily completes
+    const result = await createFamily(familyName, customPin, secretWord);
+    setIsJoining(false);
 
     if (result.success) {
       showToast(`Keluarga "${result.displayName}" berhasil dibuat!`, "success");
@@ -136,12 +136,38 @@ const App = () => {
   const handleJoinFamily = async (familyName, pin) => {
     setIsJoining(true);
     const result = await joinFamily(familyName, pin);
-    setIsJoining(false); // Reset immediately after joinFamily completes
+    setIsJoining(false);
 
     if (result.success) {
       showToast(`Berhasil masuk keluarga "${result.displayName}"!`, "success");
     } else {
       showToast(result.error || "Gagal masuk keluarga", "error");
+    }
+  };
+
+  // Handler for Child Login (no PIN)
+  const handleJoinAsChild = async (familyName) => {
+    setIsJoining(true);
+    const result = await joinFamilyAsChild(familyName);
+    setIsJoining(false);
+
+    if (result.success) {
+      showToast(`Halo! Selamat datang di ${result.displayName}! 🎉`, "success");
+    } else {
+      showToast(result.error || "Gagal masuk keluarga", "error");
+    }
+  };
+
+  // Handler for Reset PIN
+  const handleResetPin = async (familyName, secretWord, newPin) => {
+    setIsJoining(true);
+    const result = await resetPinWithSecret(familyName, secretWord, newPin);
+    setIsJoining(false);
+
+    if (result.success) {
+      showToast(`PIN berhasil direset! Silakan login dengan PIN baru.`, "success");
+    } else {
+      showToast(result.error || "Gagal reset PIN", "error");
     }
   };
 
@@ -288,6 +314,8 @@ const App = () => {
       <LoginPage
         onCreateFamily={handleCreateFamily}
         onJoinFamily={handleJoinFamily}
+        onJoinAsChild={handleJoinAsChild}
+        onResetPin={handleResetPin}
         isJoining={isJoining}
         error={dataError}
       />

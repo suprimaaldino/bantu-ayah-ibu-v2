@@ -29,11 +29,9 @@ const useFamilyData = () => {
     const [error, setError] = useState(null);
 
     // 1. Create a new Family Group
-    const createFamily = async (familyName, customPin = "123456") => {
+    const createFamily = async (familyName, customPin = "123456", secretWord = "") => {
         setError(null);
         try {
-            console.log('[createFamily] Starting with:', { familyName, customPin });
-
             // Validate family name
             if (!familyName || typeof familyName !== 'string') {
                 throw new Error("Nama keluarga harus diisi!");
@@ -49,55 +47,48 @@ const useFamilyData = () => {
                 throw new Error("Nama keluarga hanya boleh huruf, angka, dan spasi!");
             }
 
-            console.log('[createFamily] Validation passed');
-
             // Validate PIN
             if (!customPin || customPin.length !== 6 || !/^\d+$/.test(customPin)) {
                 throw new Error("PIN harus 6 digit angka!");
+            }
+
+            // Validate secret word
+            const trimmedSecret = secretWord.trim().toLowerCase();
+            if (trimmedSecret.length < 2) {
+                throw new Error("Kata rahasia minimal 2 karakter!");
             }
 
             // Use lowercase family name as document ID to prevent duplicates
             const familyId = trimmedName.toLowerCase();
             const familyRef = doc(db, 'families', familyId);
 
-            console.log('[createFamily] Checking if family exists:', familyId);
-
             // Check if family name already exists
             const snap = await getDoc(familyRef);
-
-            console.log('[createFamily] getDoc result:', snap.exists());
-
             if (snap.exists()) {
                 throw new Error("Nama keluarga sudah digunakan!");
             }
 
-            console.log('[createFamily] Creating family document...');
-
             // Initialize default data
             await setDoc(familyRef, {
-                displayName: trimmedName, // Store original casing
+                displayName: trimmedName,
                 coins: 0,
                 pin: customPin,
+                secretWord: trimmedSecret,
                 streak: 1,
                 createdAt: new Date().toISOString()
             });
 
-            console.log('[createFamily] Family created successfully, saving to localStorage');
-
             localStorage.setItem(STORAGE_KEY, familyId);
-            setFamilyId(familyId); // This will trigger useEffect to handle loading
-
-            console.log('[createFamily] Success! familyId:', familyId);
-
+            setFamilyId(familyId);
             return { success: true, displayName: trimmedName };
         } catch (err) {
-            console.error("[createFamily] Error:", err);
+            console.error("Error creating family:", err);
             setError(err.message || "Gagal membuat keluarga baru.");
             return { success: false, error: err.message };
         }
     };
 
-    // 2. Join existing Family
+    // 2. Join existing Family (with PIN - for parents)
     const joinFamily = async (familyName, pin) => {
         setError(null);
         try {
@@ -133,6 +124,78 @@ const useFamilyData = () => {
             return { success: true, displayName: data.displayName };
         } catch (err) {
             console.error("Error joining family:", err);
+            setError(err.message);
+            return { success: false, error: err.message };
+        }
+    };
+
+    // 2b. Join existing Family as Child (no PIN required)
+    const joinFamilyAsChild = async (familyName) => {
+        setError(null);
+        try {
+            // Validate inputs
+            if (!familyName || typeof familyName !== 'string') {
+                throw new Error("Nama keluarga harus diisi!");
+            }
+            const trimmedName = familyName.trim();
+            if (trimmedName.length < 3) {
+                throw new Error("Nama keluarga minimal 3 karakter!");
+            }
+
+            // Use lowercase for lookup (case-insensitive)
+            const familyId = trimmedName.toLowerCase();
+            const familyRef = doc(db, 'families', familyId);
+            const snap = await getDoc(familyRef);
+
+            if (!snap.exists()) {
+                throw new Error("Keluarga tidak ditemukan! Tanya nama yang benar ke Ayah/Ibu ya.");
+            }
+
+            const data = snap.data();
+
+            // No PIN verification for children, just join
+            localStorage.setItem(STORAGE_KEY, familyId);
+            setFamilyId(familyId);
+            return { success: true, displayName: data.displayName };
+        } catch (err) {
+            setError(err.message);
+            return { success: false, error: err.message };
+        }
+    };
+
+    // 2c. Reset PIN with Secret Word
+    const resetPinWithSecret = async (familyName, secretWord, newPin) => {
+        setError(null);
+        try {
+            // Validate inputs
+            if (!familyName || familyName.trim().length < 3) {
+                throw new Error("Nama keluarga tidak valid!");
+            }
+            if (!secretWord || secretWord.trim().length < 2) {
+                throw new Error("Kata rahasia harus diisi!");
+            }
+            if (!newPin || newPin.length !== 6 || !/^\d+$/.test(newPin)) {
+                throw new Error("PIN baru harus 6 digit angka!");
+            }
+
+            const familyId = familyName.trim().toLowerCase();
+            const familyRef = doc(db, 'families', familyId);
+            const snap = await getDoc(familyRef);
+
+            if (!snap.exists()) {
+                throw new Error("Keluarga tidak ditemukan!");
+            }
+
+            const data = snap.data();
+            if (data.secretWord !== secretWord.trim().toLowerCase()) {
+                throw new Error("Kata rahasia salah!");
+            }
+
+            // Secret word correct, update PIN
+            await updateDoc(familyRef, { pin: newPin });
+            return { success: true, displayName: data.displayName };
+        } catch (err) {
+            console.error("Error resetting PIN:", err);
             setError(err.message);
             return { success: false, error: err.message };
         }
@@ -269,6 +332,8 @@ const useFamilyData = () => {
         missionClaimCount,
         createFamily,
         joinFamily,
+        joinFamilyAsChild,
+        resetPinWithSecret,
         leaveFamily,
         addMission,
         updateMission,

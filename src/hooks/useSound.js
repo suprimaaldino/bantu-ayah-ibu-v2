@@ -100,7 +100,7 @@ const useSound = () => {
         }
     }, [initAudio, isMuted]);
 
-    // BGM: Happy 8-bit Loop
+    // BGM: Canon in D - Pachelbel's famous chord progression
     const playBGM = useCallback(() => {
         if (isMuted || bgmNodesRef.current.length > 0) return;
         initAudio();
@@ -108,57 +108,69 @@ const useSound = () => {
         const ctx = audioContextRef.current;
         if (ctx.state === 'suspended') ctx.resume();
 
-        // Cute "Pico-8" style melody (C Major Pentatonic mostly)
-        // C5, E5, G5, A5, G5, E5 pattern
-        const notes = [523.25, 659.25, 783.99, 880.00, 783.99, 659.25];
-        const durations = [0.2, 0.2, 0.2, 0.4, 0.2, 0.4]; // Rhythm variety
+        // Canon in D chord progression: D - A - Bm - F#m - G - D - G - A
+        const chords = [
+            [146.83, 220.00, 293.66], // D Major (D3, A3, D4)
+            [110.00, 164.81, 220.00], // A Major (A2, E3, A3)
+            [123.47, 185.00, 246.94], // B minor (B2, F#3, B3)
+            [92.50, 138.59, 185.00],  // F# minor (F#2, C#3, F#3)
+            [98.00, 146.83, 196.00],  // G Major (G2, D3, G3)
+            [146.83, 220.00, 293.66], // D Major (D3, A3, D4)
+            [98.00, 146.83, 196.00],  // G Major (G2, D3, G3)
+            [110.00, 164.81, 220.00], // A Major (A2, E3, A3)
+        ];
 
-        // Master volume for BGM
+        const chordDuration = 2.5; // 2.5 seconds per chord
+
+        // Master volume for BGM (very quiet)
         const masterGain = ctx.createGain();
-        masterGain.gain.value = 0.08; // Small volume so it's background
+        masterGain.gain.value = 0.04; // Very low volume
         masterGain.connect(ctx.destination);
 
-        let startTime = ctx.currentTime + 0.1; // Schedule slightly ahead
-        let noteIndex = 0;
+        let startTime = ctx.currentTime + 0.1;
+        let chordIndex = 0;
 
-        const scheduleNextNote = () => {
-            if (!bgmNodesRef.current) return; // Cleanup check
+        const scheduleNextChord = () => {
+            if (!bgmNodesRef.current || bgmNodesRef.current.length === 0) return;
 
-            // Calculate duration of current note
-            const duration = durations[noteIndex % durations.length];
-            const frequency = notes[noteIndex % notes.length];
+            const chord = chords[chordIndex % chords.length];
 
-            const osc = ctx.createOscillator();
-            const envelope = ctx.createGain();
+            chord.forEach((freq, i) => {
+                const osc = ctx.createOscillator();
+                const envelope = ctx.createGain();
 
-            osc.type = 'triangle'; // Triangle is "flute-like" and cute for BGM
-            osc.frequency.value = frequency;
+                // Use sine wave for soft, warm tones
+                osc.type = 'sine';
+                osc.frequency.value = freq;
 
-            osc.connect(envelope);
-            envelope.connect(masterGain);
+                // Add slight detune for warmth
+                osc.detune.value = (i - 1) * 3;
 
-            // Staccato envelope (cute short notes)
-            envelope.gain.setValueAtTime(0, startTime);
-            envelope.gain.linearRampToValueAtTime(0.8, startTime + 0.05);
-            envelope.gain.exponentialRampToValueAtTime(0.01, startTime + (duration * 0.8)); // decay slightly before end
+                osc.connect(envelope);
+                envelope.connect(masterGain);
 
-            osc.start(startTime);
-            osc.stop(startTime + duration);
+                // Slow fade in/out (ambient pad style)
+                envelope.gain.setValueAtTime(0, startTime);
+                envelope.gain.linearRampToValueAtTime(0.3, startTime + 0.5); // Slow fade in
+                envelope.gain.setValueAtTime(0.3, startTime + chordDuration - 0.8);
+                envelope.gain.linearRampToValueAtTime(0, startTime + chordDuration); // Fade out
 
-            // Advance time and index
-            startTime += duration;
-            noteIndex++;
+                osc.start(startTime);
+                osc.stop(startTime + chordDuration + 0.1);
+            });
+
+            startTime += chordDuration;
+            chordIndex++;
         };
 
-        // Simple Interval Scheduler
+        // Schedule ahead
         const intervalId = setInterval(() => {
-            // Schedule notes 1.5 seconds ahead
-            while (startTime < ctx.currentTime + 1.5) {
-                scheduleNextNote();
+            while (startTime < ctx.currentTime + 6) {
+                scheduleNextChord();
             }
-        }, 500); // Check every 0.5s
+        }, 2000);
 
-        // Store cleanup function
+        // Store cleanup
         bgmNodesRef.current.push({
             stop: () => {
                 clearInterval(intervalId);
