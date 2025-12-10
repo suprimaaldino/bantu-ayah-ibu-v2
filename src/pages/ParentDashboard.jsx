@@ -126,7 +126,7 @@ const ParentDashboard = ({
 
 // Sub-components (Internal for now, can be split if large)
 
-const ApprovalsList = ({ claims, missions, onApprove, onReject }) => {
+const ApprovalsList = ({ claims, missions, rewards, onApprove, onReject }) => {
   if (claims.length === 0) {
     return <EmptyState message="Tidak ada permintaan klaim saat ini." icon="👍" />;
   }
@@ -134,20 +134,37 @@ const ApprovalsList = ({ claims, missions, onApprove, onReject }) => {
   return (
     <div className="space-y-4">
       {claims.map((claim) => {
-        const mission = missions.find(m => m.id === claim.missionId);
-        if (!mission) return null; // Should treat undefined info nicely
+        const isReward = claim.type === 'reward';
+        const item = isReward
+          ? rewards.find(r => r.id === claim.itemId)
+          : missions.find(m => m.id === claim.itemId || m.id === claim.missionId);
+
+        if (!item) return null;
+
+        const quantity = claim.quantity || 1;
+        const totalValue = isReward ? item.price * quantity : item.coins;
 
         return (
-          <div key={claim.id} className="border border-gray-100 rounded-xl p-4 flex flex-col sm:flex-row gap-4 items-center bg-yellow-50">
-            <div className="text-4xl">{mission.emoji}</div>
+          <div key={claim.id} className="border border-gray-100 rounded-xl p-4 flex flex-col sm:flex-row gap-4 items-center bg-yellow-50 relative overflow-hidden">
+            {/* Category Badge */}
+            <div className={`absolute top-0 right-0 px-3 py-1 text-xs font-bold rounded-bl-xl ${isReward ? 'bg-pink-500 text-white' : 'bg-blue-500 text-white'}`}>
+              {isReward ? '🎁 Hadiah' : '🎯 Misi'}
+            </div>
+
+            <div className="text-4xl">{item.emoji}</div>
             <div className="flex-1 text-center sm:text-left">
-              <h3 className="font-bold text-gray-800">{mission.name}</h3>
+              <h3 className="font-bold text-gray-800">
+                {item.name} {quantity > 1 && <span className="text-purple-600 text-sm">(x{quantity})</span>}
+              </h3>
               <p className="text-sm text-gray-500">
                 {new Date(claim.timestamp).toLocaleString('id-ID')}
               </p>
-              <div className="text-orange-600 font-bold mt-1">+{mission.coins} Koin</div>
+              <div className={`font-bold mt-1 ${isReward ? 'text-red-500' : 'text-green-600'}`}>
+                {isReward ? `-${totalValue} Koin` : `+${totalValue} Koin`}
+                {quantity > 1 && isReward && <span className="text-xs text-gray-400 font-normal ml-1">({item.price} x {quantity})</span>}
+              </div>
             </div>
-            <div className="flex gap-2 w-full sm:w-auto">
+            <div className="flex gap-2 w-full sm:w-auto mt-4 sm:mt-0">
               <button
                 onClick={() => onReject(claim.id)}
                 className="flex-1 sm:flex-none px-4 py-2 border border-red-200 text-red-600 rounded-lg hover:bg-red-50"
