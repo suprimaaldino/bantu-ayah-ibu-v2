@@ -32,6 +32,8 @@ const useFamilyData = () => {
     const createFamily = async (familyName, customPin = "123456") => {
         setError(null);
         try {
+            console.log('[createFamily] Starting with:', { familyName, customPin });
+
             // Validate family name
             if (!familyName || typeof familyName !== 'string') {
                 throw new Error("Nama keluarga harus diisi!");
@@ -47,6 +49,8 @@ const useFamilyData = () => {
                 throw new Error("Nama keluarga hanya boleh huruf, angka, dan spasi!");
             }
 
+            console.log('[createFamily] Validation passed');
+
             // Validate PIN
             if (!customPin || customPin.length !== 6 || !/^\d+$/.test(customPin)) {
                 throw new Error("PIN harus 6 digit angka!");
@@ -56,11 +60,18 @@ const useFamilyData = () => {
             const familyId = trimmedName.toLowerCase();
             const familyRef = doc(db, 'families', familyId);
 
+            console.log('[createFamily] Checking if family exists:', familyId);
+
             // Check if family name already exists
             const snap = await getDoc(familyRef);
+
+            console.log('[createFamily] getDoc result:', snap.exists());
+
             if (snap.exists()) {
                 throw new Error("Nama keluarga sudah digunakan!");
             }
+
+            console.log('[createFamily] Creating family document...');
 
             // Initialize default data
             await setDoc(familyRef, {
@@ -71,11 +82,16 @@ const useFamilyData = () => {
                 createdAt: new Date().toISOString()
             });
 
+            console.log('[createFamily] Family created successfully, saving to localStorage');
+
             localStorage.setItem(STORAGE_KEY, familyId);
             setFamilyId(familyId); // This will trigger useEffect to handle loading
+
+            console.log('[createFamily] Success! familyId:', familyId);
+
             return { success: true, displayName: trimmedName };
         } catch (err) {
-            console.error("Error creating family:", err);
+            console.error("[createFamily] Error:", err);
             setError(err.message || "Gagal membuat keluarga baru.");
             return { success: false, error: err.message };
         }

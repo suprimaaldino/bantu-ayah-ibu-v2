@@ -19,6 +19,7 @@ const ParentDashboard = lazy(() => import("./pages/ParentDashboard.jsx"));
 const App = () => {
   // --- Real-time Data Hook ---
   const {
+    familyId,           // Add familyId here!
     isAuthenticated,
     isLoading: isDataLoading,
     error: dataError,
@@ -373,8 +374,8 @@ const App = () => {
               onDeleteReward={deleteReward}
 
               // Pass ID for display
-              familyId={useFamilyData().familyId} // Or pass prop
-              onLogout={() => { leaveFamily(); activePage("missions"); }}
+              familyId={familyId}
+              onLogout={() => { leaveFamily(); setActivePage("missions"); }}
             />
           )}
         </Suspense>
