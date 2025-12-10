@@ -2,7 +2,7 @@ import React from 'react';
 import { Helmet } from 'react-helmet-async';
 import Header from '../components/Header';
 
-const ProfilePage = ({ coins, completedMissions, totalMissions, streak, onSetPin, isOldPinVerified, childName }) => {
+const ProfilePage = ({ coins, completedMissions, totalMissions, streak, onSetPin, isOldPinVerified, childName, onEnterParentMode }) => {
   const completionPercentage =
     totalMissions > 0
       ? Math.round((completedMissions.length / totalMissions) * 100)
@@ -162,6 +162,16 @@ const ProfilePage = ({ coins, completedMissions, totalMissions, streak, onSetPin
               <p className="text-gray-700 font-fun font-semibold">
                 Terus semangat menyelesaikan misi! Kamu luar biasa! 🌟
               </p>
+            </div>
+
+            {/* Parent Mode Button */}
+            <div className="mt-6 text-center animate-fade-in-up" style={{ animationDelay: '0.6s' }}>
+              <button
+                onClick={onEnterParentMode}
+                className="bg-white/50 border-2 border-dashed border-gray-400 text-gray-600 px-6 py-3 rounded-xl font-bold hover:bg-gray-100/80 shadow-sm active:scale-95 transition-transform flex items-center gap-2 mx-auto"
+              >
+                🔒 Mode Orang Tua
+              </button>
             </div>
           </div>
         </div>

@@ -2,7 +2,7 @@ import React from 'react';
 import { Helmet } from 'react-helmet-async';
 import Header from '../components/Header';
 
-const MissionsPage = ({ missions, onClaimMission, coins, missionClaimCount = {} }) => {
+const MissionsPage = ({ missions, onClaimMission, coins, missionClaimCount = {}, pendingClaims = [] }) => {
   return (
     <>
       <Helmet>
@@ -71,9 +71,13 @@ const MissionsPage = ({ missions, onClaimMission, coins, missionClaimCount = {} 
                     {/* Action Button */}
                     <button
                       onClick={() => onClaimMission(mission)}
-                      className="btn-game bg-gradient-purple-pink text-white px-4 sm:px-6 py-2 sm:py-2.5 rounded-full font-game font-bold text-xs sm:text-sm shadow-glow-purple hover:scale-105 active:scale-95 transition-all duration-300 flex-1 whitespace-nowrap"
+                      disabled={pendingClaims?.some(c => c.missionId === mission.id)}
+                      className={`btn-game px-4 sm:px-6 py-2 sm:py-2.5 rounded-full font-game font-bold text-xs sm:text-sm shadow-glow-purple hover:scale-105 active:scale-95 transition-all duration-300 flex-1 whitespace-nowrap 
+                        ${pendingClaims?.some(c => c.missionId === mission.id)
+                          ? 'bg-gray-400 text-white cursor-not-allowed opacity-80'
+                          : 'bg-gradient-purple-pink text-white'}`}
                     >
-                      🚀 Klaim Misi
+                      {pendingClaims?.some(c => c.missionId === mission.id) ? '⏳ Menunggu...' : '🚀 Klaim Misi'}
                     </button>
                   </div>
                 </div>

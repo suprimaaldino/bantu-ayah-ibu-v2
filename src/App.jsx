@@ -15,8 +15,10 @@ const MissionsPage = lazy(() => import("./pages/MissionsPage.jsx"));
 const RewardsPage = lazy(() => import("./pages/RewardsPage.jsx"));
 const ProfilePage = lazy(() => import("./pages/ProfilePage.jsx"));
 const InstallPrompt = lazy(() => import("./components/InstallPrompt.jsx"));
+const ParentDashboard = lazy(() => import("./pages/ParentDashboard.jsx"));
 
 const App = () => {
+  // State Management
   // State Management
   const [coins, setCoins] = useState(0);
   const [completedMissions, setCompletedMissions] = useState([]);
@@ -33,6 +35,11 @@ const App = () => {
     isChangingPin: false,
   });
   const [isOldPinVerified, setIsOldPinVerified] = useState(false);
+
+  // 🆕 New State for Dynamic Data & Approvals
+  const [missionsList, setMissionsList] = useState([]);
+  const [rewardsList, setRewardsList] = useState([]);
+  const [pendingClaims, setPendingClaims] = useState([]);
 
   // Name Context
   const { name: childName, setName: setChildName, isLoading: isNameLoading } = useName();
@@ -54,7 +61,7 @@ const App = () => {
     return () => window.removeEventListener('click', startAudio);
   }, [hasInteracted, playBGM]);
 
-  // ✅ Load persisted data on mount
+  // ✅ Load persisted data on mount & Initialize Defaults
   useEffect(() => {
     try {
       const savedCoins = getFromStorage("coins", 0);
@@ -64,11 +71,18 @@ const App = () => {
       const savedMissionClaimCount = getFromStorage("missionClaimCount", {});
       const lastVisit = getFromStorage("lastVisit", null);
 
+      const savedMissions = getFromStorage("missionsList", missions); // Default to imported data
+      const savedRewards = getFromStorage("rewardsList", rewards);    // Default to imported data
+      const savedPendingClaims = getFromStorage("pendingClaims", []);
+
       setCoins(savedCoins);
       setCompletedMissions(savedCompletedMissions);
       setClaimedRewards(savedClaimedRewards);
       setStreak(savedStreak);
       setMissionClaimCount(savedMissionClaimCount);
+      setMissionsList(savedMissions);
+      setRewardsList(savedRewards);
+      setPendingClaims(savedPendingClaims);
 
       // Streak calculation
       const today = new Date().toDateString();
@@ -95,7 +109,7 @@ const App = () => {
     }
   }, [childName, isNameLoading]);
 
-  // ✅ Debounce localStorage writes supaya tidak terlalu sering block main thread
+  // ✅ Debounce localStorage writes
   useEffect(() => {
     const t = setTimeout(() => saveToStorage("coins", coins), 300);
     return () => clearTimeout(t);
@@ -115,6 +129,22 @@ const App = () => {
     const t = setTimeout(() => saveToStorage("missionClaimCount", missionClaimCount), 300);
     return () => clearTimeout(t);
   }, [missionClaimCount]);
+
+  // 🆕 Persist dynamic lists
+  useEffect(() => {
+    const t = setTimeout(() => saveToStorage("missionsList", missionsList), 300);
+    return () => clearTimeout(t);
+  }, [missionsList]);
+
+  useEffect(() => {
+    const t = setTimeout(() => saveToStorage("rewardsList", rewardsList), 300);
+    return () => clearTimeout(t);
+  }, [rewardsList]);
+
+  useEffect(() => {
+    const t = setTimeout(() => saveToStorage("pendingClaims", pendingClaims), 300);
+    return () => clearTimeout(t);
+  }, [pendingClaims]);
 
   // ✅ Memoized Functions
   const showToast = useCallback((message, type = "success") => setToast({ message, type }), []);
@@ -150,26 +180,60 @@ const App = () => {
   );
 
   // ✅ Mission & Reward Handlers
+  // ✅ NEW: Request Claim (Child)
+  const handleRequestClaim = useCallback((mission) => {
+    // Check if already pending
+    const isPending = pendingClaims.some(c => c.missionId === mission.id);
+    if (isPending) {
+      showToast("Misi ini sedang menunggu persetujuan orang tua", "info");
+      return;
+    }
+
+    const newClaim = {
+      id: Date.now(),
+      missionId: mission.id,
+      timestamp: new Date().toISOString(),
+      childName: childName,
+      status: 'pending'
+    };
+
+    setPendingClaims(prev => [...prev, newClaim]);
+    playSound('success');
+    showToast("Permintaan dikirim ke Ayah/Ibu! 👨‍👩‍👧", "success");
+  }, [pendingClaims, childName, playSound, showToast]);
+
+  // ✅ NEW: Approve Claim (Parent)
+  const handleApproveClaim = useCallback((claim) => {
+    const mission = missionsList.find(m => m.id === claim.missionId);
+    if (!mission) return;
+
+    setCoins((prev) => prev + mission.coins);
+    setMissionClaimCount((prev) => ({
+      ...prev,
+      [mission.id]: (prev[mission.id] || 0) + 1
+    }));
+
+    // Remove from pending
+    setPendingClaims(prev => prev.filter(c => c.id !== claim.id));
+
+    playSound('success');
+    showToast(`Klaim disetujui! Koin bertambah ` + mission.coins, "success");
+  }, [missionsList, playSound, showToast]);
+
+  // ✅ NEW: Reject Claim (Parent)
+  const handleRejectClaim = useCallback((claimId) => {
+    setPendingClaims(prev => prev.filter(c => c.id !== claimId));
+    showToast("Klaim ditolak", "info");
+  }, [showToast]);
+
+  // ✅ Mission & Reward Handlers
   const claimMission = useCallback(
     (mission) => {
-      requestPinVerification(
-        () => {
-          setCoins((prev) => prev + mission.coins);
-          setMissionClaimCount((prev) => ({
-            ...prev,
-            [mission.id]: (prev[mission.id] || 0) + 1
-          }));
-          const newCount = (missionClaimCount[mission.id] || 0) + 1;
-          playSound('success');
-          showToast(`Selamat! Kamu mendapat ${mission.coins} koin! (${newCount}x diklaim)`, "success");
-        },
-        mission,
-        "Verifikasi Orang Tua",
-        "Masukkan PIN untuk mengklaim misi ini"
-      );
+      handleRequestClaim(mission);
     },
-    [requestPinVerification, showToast, missionClaimCount, playSound]
+    [handleRequestClaim]
   );
+
 
   const redeemReward = useCallback(
     (reward) => {
@@ -286,16 +350,17 @@ const App = () => {
         }>
           {activePage === "missions" && (
             <MissionsPage
-              missions={missions}
+              missions={missionsList}
               onClaimMission={claimMission}
               coins={coins}
               missionClaimCount={missionClaimCount}
+              pendingClaims={pendingClaims}
             />
           )}
 
           {activePage === "rewards" && (
             <RewardsPage
-              rewards={rewards}
+              rewards={rewardsList}
               coins={coins}
               onRedeemReward={redeemReward}
               claimedRewards={claimedRewards}
@@ -306,45 +371,67 @@ const App = () => {
             <ProfilePage
               coins={coins}
               completedMissions={completedMissions}
-              totalMissions={missions.length}
+              totalMissions={missionsList.length}
               streak={streak}
               onSetPin={handleSetNewPin}
               isOldPinVerified={isOldPinVerified}
               childName={childName}
+              onEnterParentMode={() => requestPinVerification(
+                () => setActivePage("parent"),
+                null,
+                "Masuk Mode Orang Tua",
+                "Masukkan PIN untuk mengakses dashboard orang tua"
+              )}
+            />
+          )}
+
+          {activePage === "parent" && (
+            <ParentDashboard
+              missions={missionsList}
+              setMissions={setMissionsList}
+              rewards={rewardsList}
+              setRewards={setRewardsList}
+              pendingClaims={pendingClaims}
+              setPendingClaims={setPendingClaims}
+              onApproveClaim={handleApproveClaim}
+              onRejectClaim={handleRejectClaim}
+              onExit={() => setActivePage("missions")}
             />
           )}
         </Suspense>
       </main>
 
       {/* 🎨 Game-Style Bottom Navigation */}
-      <nav
-        className="fixed bottom-0 left-0 right-0 glass-white border-t-2 border-white/30 shadow-glow-purple z-50"
-        role="navigation"
-        aria-label="Navigasi bawah"
-      >
-        <div className="max-w-md mx-auto">
-          <div className="flex justify-around items-center py-2">
-            {navigationItems.map((item) => (
-              <button
-                key={item.id}
-                onClick={() => {
-                  playSound('click');
-                  setActivePage(item.id);
-                }}
-                className={`flex flex-col items-center py-3 px-6 rounded-2xl transition-all duration-300 ${activePage === item.id
-                  ? 'bg-gradient-purple-pink text-white scale-110 shadow-glow-purple animate-bounce-slow'
-                  : 'text-gray-600 hover:text-game-purple hover:scale-105'
-                  }`}
-              >
-                <span className={`text-3xl mb-1 ${activePage === item.id ? 'animate-wiggle' : ''}`}>
-                  {item.icon}
-                </span>
-                <span className="text-xs font-bold uppercase tracking-wide">{item.label}</span>
-              </button>
-            ))}
+      {activePage !== "parent" && (
+        <nav
+          className="fixed bottom-0 left-0 right-0 glass-white border-t-2 border-white/30 shadow-glow-purple z-50"
+          role="navigation"
+          aria-label="Navigasi bawah"
+        >
+          <div className="max-w-md mx-auto">
+            <div className="flex justify-around items-center py-2">
+              {navigationItems.map((item) => (
+                <button
+                  key={item.id}
+                  onClick={() => {
+                    playSound('click');
+                    setActivePage(item.id);
+                  }}
+                  className={`flex flex-col items-center py-3 px-6 rounded-2xl transition-all duration-300 ${activePage === item.id
+                    ? 'bg-gradient-purple-pink text-white scale-110 shadow-glow-purple animate-bounce-slow'
+                    : 'text-gray-600 hover:text-game-purple hover:scale-105'
+                    }`}
+                >
+                  <span className={`text-3xl mb-1 ${activePage === item.id ? 'animate-wiggle' : ''}`}>
+                    {item.icon}
+                  </span>
+                  <span className="text-xs font-bold uppercase tracking-wide">{item.label}</span>
+                </button>
+              ))}
+            </div>
           </div>
-        </div>
-      </nav>
+        </nav>
+      )}
 
       {/* Modals */}
       <ModalPIN

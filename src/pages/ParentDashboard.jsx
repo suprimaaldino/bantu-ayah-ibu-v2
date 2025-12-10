@@ -1,0 +1,370 @@
+import React, { useState } from 'react';
+import useSound from '../hooks/useSound';
+
+const ParentDashboard = ({
+  missions,
+  setMissions,
+  rewards,
+  setRewards,
+  pendingClaims,
+  setPendingClaims,
+  onApproveClaim,
+  onRejectClaim,
+  onExit
+}) => {
+  const [activeTab, setActiveTab] = useState('approvals'); // approvals, missions, rewards
+  const { playSound } = useSound();
+
+  // Local state for forms
+  const [isEditing, setIsEditing] = useState(false);
+  const [editItem, setEditItem] = useState(null);
+
+  // Generic delete handler
+  const handleDelete = (type, id) => {
+    if (confirm('Yakin ingin menghapus item ini?')) {
+      if (type === 'mission') {
+        setMissions(prev => prev.filter(m => m.id !== id));
+      } else {
+        setRewards(prev => prev.filter(r => r.id !== id));
+      }
+      playSound('click');
+    }
+  };
+
+  // Generic save handler
+  const handleSave = (type, item) => {
+    if (type === 'mission') {
+      if (isEditing) {
+        setMissions(prev => prev.map(m => m.id === item.id ? item : m));
+      } else {
+        setMissions(prev => [...prev, { ...item, id: Date.now() }]);
+      }
+    } else {
+      if (isEditing) {
+        setRewards(prev => prev.map(r => r.id === item.id ? item : r));
+      } else {
+        setRewards(prev => [...prev, { ...item, id: Date.now() }]);
+      }
+    }
+    setIsEditing(false);
+    setEditItem(null);
+    playSound('success');
+  };
+
+  return (
+    <div className="min-h-screen bg-gray-50 pb-24 pt-4 px-4">
+      {/* Header */}
+      <div className="flex justify-between items-center mb-6 mt-12">
+        <h1 className="text-2xl font-bold text-gray-800">Mode Orang Tua 👨‍👩‍👧</h1>
+        <button
+          onClick={onExit}
+          className="bg-red-500 text-white px-4 py-2 rounded-lg font-bold hover:bg-red-600 transition shadow-md mr-16"
+        >
+          Keluar
+        </button>
+      </div>
+
+      {/* Tabs */}
+      <div className="flex gap-2 mb-6 overflow-x-auto pb-2">
+        {[
+          { id: 'approvals', label: 'Persetujuan', icon: '✅' },
+          { id: 'missions', label: 'Atur Misi', icon: '📝' },
+          { id: 'rewards', label: 'Atur Hadiah', icon: '🎁' },
+        ].map(tab => (
+          <button
+            key={tab.id}
+            onClick={() => setActiveTab(tab.id)}
+            className={`flex items-center gap-2 px-4 py-2 rounded-full whitespace-nowrap transition-all ${activeTab === tab.id
+              ? 'bg-purple-600 text-white shadow-md scale-105'
+              : 'bg-white text-gray-600 border border-gray-200'
+              }`}
+          >
+            <span>{tab.icon}</span>
+            <span className="font-semibold">{tab.label}</span>
+            {tab.id === 'approvals' && pendingClaims.length > 0 && (
+              <span className="bg-red-500 text-white text-xs px-2 py-0.5 rounded-full">
+                {pendingClaims.length}
+              </span>
+            )}
+          </button>
+        ))}
+      </div>
+
+      {/* Content */}
+      <div className="bg-white rounded-2xl shadow-sm p-4 min-h-[50vh]">
+        {activeTab === 'approvals' && (
+          <ApprovalsList
+            claims={pendingClaims}
+            missions={missions}
+            onApprove={onApproveClaim}
+            onReject={onRejectClaim}
+          />
+        )}
+
+        {activeTab === 'missions' && (
+          <MissionsManager
+            missions={missions}
+            onSave={(item) => handleSave('mission', item)}
+            onDelete={(id) => handleDelete('mission', id)}
+            setIsEditing={setIsEditing}
+          />
+        )}
+
+        {activeTab === 'rewards' && (
+          <RewardsManager
+            rewards={rewards}
+            onSave={(item) => handleSave('reward', item)}
+            onDelete={(id) => handleDelete('reward', id)}
+            setIsEditing={setIsEditing}
+          />
+        )}
+      </div>
+    </div>
+  );
+};
+
+// Sub-components (Internal for now, can be split if large)
+
+const ApprovalsList = ({ claims, missions, onApprove, onReject }) => {
+  if (claims.length === 0) {
+    return <EmptyState message="Tidak ada permintaan klaim saat ini." icon="👍" />;
+  }
+
+  return (
+    <div className="space-y-4">
+      {claims.map((claim) => {
+        const mission = missions.find(m => m.id === claim.missionId);
+        if (!mission) return null; // Should treat undefined info nicely
+
+        return (
+          <div key={claim.id} className="border border-gray-100 rounded-xl p-4 flex flex-col sm:flex-row gap-4 items-center bg-yellow-50">
+            <div className="text-4xl">{mission.emoji}</div>
+            <div className="flex-1 text-center sm:text-left">
+              <h3 className="font-bold text-gray-800">{mission.name}</h3>
+              <p className="text-sm text-gray-500">
+                {new Date(claim.timestamp).toLocaleString('id-ID')}
+              </p>
+              <div className="text-orange-600 font-bold mt-1">+{mission.coins} Koin</div>
+            </div>
+            <div className="flex gap-2 w-full sm:w-auto">
+              <button
+                onClick={() => onReject(claim.id)}
+                className="flex-1 sm:flex-none px-4 py-2 border border-red-200 text-red-600 rounded-lg hover:bg-red-50"
+              >
+                Tolak
+              </button>
+              <button
+                onClick={() => onApprove(claim)}
+                className="flex-1 sm:flex-none px-6 py-2 bg-green-500 text-white rounded-lg font-bold hover:bg-green-600 shadow-md"
+              >
+                Setuju
+              </button>
+            </div>
+          </div>
+        );
+      })}
+    </div>
+  );
+};
+
+const MissionsManager = ({ missions, onSave, onDelete, setIsEditing }) => {
+  const [isFormOpen, setIsFormOpen] = useState(false);
+  const [editingItem, setEditingItem] = useState(null);
+
+  const openForm = (item = null) => {
+    setEditingItem(item);
+    setIsEditing(!!item);
+    setIsFormOpen(true);
+  };
+
+  if (isFormOpen) {
+    return (
+      <ItemForm
+        type="mission"
+        initialData={editingItem}
+        onCancel={() => {
+          setIsEditing(false);
+          setIsFormOpen(false);
+        }}
+        onSave={(data) => {
+          onSave(data);
+          setIsEditing(false);
+          setIsFormOpen(false);
+        }}
+      />
+    );
+  }
+
+  return (
+    <div>
+      <div className="flex justify-between items-center mb-4">
+        <h3 className="font-bold text-gray-700">Daftar Misi</h3>
+        <button onClick={() => openForm()} className="bg-purple-600 text-white px-4 py-2 rounded-lg text-sm font-bold shadow-md hover:bg-purple-700">
+          + Tambah Misi
+        </button>
+      </div>
+
+      <div className="space-y-3">
+        {missions.map(mission => (
+          <div key={mission.id} className="flex items-center justify-between p-3 border rounded-xl hover:bg-gray-50">
+            <div className="flex items-center gap-3">
+              <span className="text-2xl">{mission.emoji}</span>
+              <div>
+                <div className="font-bold text-gray-800">{mission.name}</div>
+                <div className="text-xs text-gray-500 capitalize">{mission.difficulty} • {mission.coins} Koin</div>
+              </div>
+            </div>
+            <div className="flex gap-2">
+              <button onClick={() => openForm(mission)} className="text-blue-500 p-2 hover:bg-blue-50 rounded">✏️</button>
+              <button onClick={() => onDelete(mission.id)} className="text-red-500 p-2 hover:bg-red-50 rounded">🗑️</button>
+            </div>
+          </div>
+        ))}
+      </div>
+    </div>
+  );
+};
+
+const RewardsManager = ({ rewards, onSave, onDelete, setIsEditing }) => {
+  const [isFormOpen, setIsFormOpen] = useState(false);
+  const [editingItem, setEditingItem] = useState(null);
+
+  const openForm = (item = null) => {
+    setEditingItem(item);
+    setIsEditing(!!item);
+    setIsFormOpen(true);
+  };
+
+  if (isFormOpen) {
+    return (
+      <ItemForm
+        type="reward"
+        initialData={editingItem}
+        onCancel={() => {
+          setIsEditing(false);
+          setIsFormOpen(false);
+        }}
+        onSave={(data) => {
+          onSave(data);
+          setIsEditing(false);
+          setIsFormOpen(false);
+        }}
+      />
+    );
+  }
+
+  return (
+    <div>
+      <div className="flex justify-between items-center mb-4">
+        <h3 className="font-bold text-gray-700">Daftar Hadiah</h3>
+        <button onClick={() => openForm()} className="bg-purple-600 text-white px-4 py-2 rounded-lg text-sm font-bold shadow-md hover:bg-purple-700">
+          + Tambah Hadiah
+        </button>
+      </div>
+
+      <div className="space-y-3">
+        {rewards.map(reward => (
+          <div key={reward.id} className="flex items-center justify-between p-3 border rounded-xl hover:bg-gray-50">
+            <div className="flex items-center gap-3">
+              <span className="text-2xl">{reward.emoji}</span>
+              <div>
+                <div className="font-bold text-gray-800">{reward.name}</div>
+                <div className="text-xs text-gray-500">{reward.price} Koin</div>
+              </div>
+            </div>
+            <div className="flex gap-2">
+              <button onClick={() => openForm(reward)} className="text-blue-500 p-2 hover:bg-blue-50 rounded">✏️</button>
+              <button onClick={() => onDelete(reward.id)} className="text-red-500 p-2 hover:bg-red-50 rounded">🗑️</button>
+            </div>
+          </div>
+        ))}
+      </div>
+    </div>
+  );
+};
+
+const ItemForm = ({ type, initialData, onCancel, onSave }) => {
+  const [formData, setFormData] = useState(initialData || {
+    name: '',
+    emoji: type === 'mission' ? '📝' : '🎁',
+    coins: 5,
+    price: 10,
+    difficulty: 'Mudah'
+  });
+
+  const handleSubmit = (e) => {
+    e.preventDefault();
+    onSave(formData);
+  };
+
+  return (
+    <form onSubmit={handleSubmit} className="space-y-4">
+      <h3 className="font-bold text-gray-800">{initialData ? 'Edit' : 'Tambah'} {type === 'mission' ? 'Misi' : 'Hadiah'}</h3>
+
+      <div>
+        <label className="block text-sm font-medium text-gray-700 mb-1">Nama</label>
+        <input
+          required
+          className="w-full border rounded-lg p-2"
+          value={formData.name}
+          onChange={e => setFormData({ ...formData, name: e.target.value })}
+          placeholder={`Contoh: ${type === 'mission' ? 'Membersihkan Mainan' : 'Es Krim'}`}
+        />
+      </div>
+
+      <div className="flex gap-4">
+        <div className="flex-1">
+          <label className="block text-sm font-medium text-gray-700 mb-1">Icon/Emoji</label>
+          <input
+            className="w-full border rounded-lg p-2 text-center"
+            value={formData.emoji}
+            onChange={e => setFormData({ ...formData, emoji: e.target.value })}
+            placeholder="🎁"
+          />
+        </div>
+        <div className="flex-1">
+          <label className="block text-sm font-medium text-gray-700 mb-1">{type === 'mission' ? 'Koin (skor)' : 'Harga (koin)'}</label>
+          <input
+            type="number"
+            required
+            className="w-full border rounded-lg p-2"
+            value={type === 'mission' ? formData.coins : formData.price}
+            onChange={e => setFormData({
+              ...formData,
+              [type === 'mission' ? 'coins' : 'price']: parseInt(e.target.value) || 0
+            })}
+          />
+        </div>
+      </div>
+
+      {type === 'mission' && (
+        <div>
+          <label className="block text-sm font-medium text-gray-700 mb-1">Kesulitan</label>
+          <select
+            className="w-full border rounded-lg p-2"
+            value={formData.difficulty}
+            onChange={e => setFormData({ ...formData, difficulty: e.target.value })}
+          >
+            <option value="Mudah">Mudah</option>
+            <option value="Sedang">Sedang</option>
+            <option value="Sulit">Sulit</option>
+          </select>
+        </div>
+      )}
+
+      <div className="flex gap-2 pt-4">
+        <button type="button" onClick={onCancel} className="flex-1 py-2 text-gray-600 bg-gray-100 rounded-lg hover:bg-gray-200">Batal</button>
+        <button type="submit" className="flex-1 py-2 text-white bg-purple-600 rounded-lg hover:bg-purple-700">Simpan</button>
+      </div>
+    </form>
+  );
+}
+
+const EmptyState = ({ message, icon }) => (
+  <div className="flex flex-col items-center justify-center py-12 text-gray-400">
+    <span className="text-4xl mb-2 grayscale opacity-50">{icon}</span>
+    <p>{message}</p>
+  </div>
+);
+
+export default ParentDashboard;
