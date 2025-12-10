@@ -3,14 +3,21 @@ import useSound from '../hooks/useSound';
 
 const ParentDashboard = ({
   missions,
-  setMissions,
+  // setMissions, -> REMOVED
   rewards,
-  setRewards,
+  // setRewards, -> REMOVED
   pendingClaims,
-  setPendingClaims,
+  // setPendingClaims, -> REMOVED
   onApproveClaim,
   onRejectClaim,
-  onExit
+  onExit,
+  // NEW PROPS
+  onSaveMission,
+  onDeleteMission,
+  onSaveReward,
+  onDeleteReward,
+  familyId,
+  onLogout
 }) => {
   const [activeTab, setActiveTab] = useState('approvals'); // approvals, missions, rewards
   const { playSound } = useSound();
@@ -23,9 +30,9 @@ const ParentDashboard = ({
   const handleDelete = (type, id) => {
     if (confirm('Yakin ingin menghapus item ini?')) {
       if (type === 'mission') {
-        setMissions(prev => prev.filter(m => m.id !== id));
+        onDeleteMission(id);
       } else {
-        setRewards(prev => prev.filter(r => r.id !== id));
+        onDeleteReward(id);
       }
       playSound('click');
     }
@@ -34,17 +41,9 @@ const ParentDashboard = ({
   // Generic save handler
   const handleSave = (type, item) => {
     if (type === 'mission') {
-      if (isEditing) {
-        setMissions(prev => prev.map(m => m.id === item.id ? item : m));
-      } else {
-        setMissions(prev => [...prev, { ...item, id: Date.now() }]);
-      }
+      onSaveMission(item);
     } else {
-      if (isEditing) {
-        setRewards(prev => prev.map(r => r.id === item.id ? item : r));
-      } else {
-        setRewards(prev => [...prev, { ...item, id: Date.now() }]);
-      }
+      onSaveReward(item);
     }
     setIsEditing(false);
     setEditItem(null);
@@ -54,14 +53,26 @@ const ParentDashboard = ({
   return (
     <div className="min-h-screen bg-gray-50 pb-24 pt-4 px-4">
       {/* Header */}
-      <div className="flex justify-between items-center mb-6 mt-12">
-        <h1 className="text-2xl font-bold text-gray-800">Mode Orang Tua 👨‍👩‍👧</h1>
-        <button
-          onClick={onExit}
-          className="bg-red-500 text-white px-4 py-2 rounded-lg font-bold hover:bg-red-600 transition shadow-md mr-16"
-        >
-          Keluar
-        </button>
+      <div className="flex flex-col sm:flex-row justify-between items-center mb-6 mt-12 gap-4">
+        <div>
+          <h1 className="text-2xl font-bold text-gray-800">Mode Orang Tua 👨‍👩‍👧</h1>
+          <p className="text-sm text-gray-500 font-bold">Kode Keluarga: <span className="bg-purple-100 text-purple-700 px-2 py-0.5 rounded-lg select-all">{familyId}</span></p>
+        </div>
+
+        <div className="flex gap-2">
+          <button
+            onClick={onLogout}
+            className="bg-gray-200 text-gray-600 px-4 py-2 rounded-lg font-bold hover:bg-gray-300 transition shadow-sm"
+          >
+            Keluar Keluarga
+          </button>
+          <button
+            onClick={onExit}
+            className="bg-red-500 text-white px-4 py-2 rounded-lg font-bold hover:bg-red-600 transition shadow-md"
+          >
+            Tutup Dashboard
+          </button>
+        </div>
       </div>
 
       {/* Tabs */}
@@ -156,9 +167,18 @@ const ApprovalsList = ({ claims, missions, rewards, onApprove, onReject }) => {
               <h3 className="font-bold text-gray-800">
                 {item.name} {quantity > 1 && <span className="text-purple-600 text-sm">(x{quantity})</span>}
               </h3>
-              <p className="text-sm text-gray-500">
-                {new Date(claim.timestamp).toLocaleString('id-ID')}
-              </p>
+              <div className="flex items-center gap-2 text-sm mt-1 justify-center sm:justify-start">
+                <span className="bg-purple-100 text-purple-700 px-2 py-0.5 rounded-full font-bold">
+                  👤 {claim.childName || 'Anak'}
+                </span>
+                <span className="text-gray-400">•</span>
+                <span className="text-gray-500">{new Date(claim.timestamp).toLocaleString('id-ID', {
+                  day: 'numeric',
+                  month: 'short',
+                  hour: '2-digit',
+                  minute: '2-digit'
+                })}</span>
+              </div>
               <div className={`font-bold mt-1 ${isReward ? 'text-red-500' : 'text-green-600'}`}>
                 {isReward ? `-${totalValue} Koin` : `+${totalValue} Koin`}
                 {quantity > 1 && isReward && <span className="text-xs text-gray-400 font-normal ml-1">({item.price} x {quantity})</span>}
